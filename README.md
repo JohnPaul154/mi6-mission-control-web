@@ -9,7 +9,7 @@
 - Arsenal
   - Fully working
 - Profile
-  - Can Edit Details but not pictures
+  - Can edit details but not pictures
 
 ## Things to do
 
@@ -17,6 +17,8 @@
   - Handle adding agent
   - Handle adding arsenal
 - MI6: Chat Room
+  - Presence system
+  - Real-time chat system
 - Agents List
   - Upload picture
   - Add more agent details
