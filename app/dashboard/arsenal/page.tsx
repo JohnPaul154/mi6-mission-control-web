@@ -117,7 +117,7 @@ export const EquipmentTable: React.FC<{
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-1/12">ID</TableHead>
+          <TableHead className="w-2/12">ID</TableHead>
           <TableHead className="w-1/2">Equipment</TableHead>
           <TableHead>Event</TableHead>
           <TableHead className="w-[50px] text-right"></TableHead>
@@ -126,7 +126,7 @@ export const EquipmentTable: React.FC<{
       <TableBody>
         {equipment.map((item) => (
           <TableRow key={item.id}>
-            <TableCell className="w-1/12">{item.id}</TableCell>
+            <TableCell className="w-2/12">{item.id}</TableCell>
             <TableCell className="w-1/2">
               {editingItemId === item.id ? (
                 <input
