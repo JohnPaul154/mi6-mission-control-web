@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useSession } from "@/context/SessionContext"; // Import the hook
-import { firestoreDB } from '@/firebase/initFirebase'; // Firebase import
+import { useSession } from "@/context/SessionContext";
+import { firestoreDB } from '@/firebase/init-firebase';
 import { doc, getDoc } from "firebase/firestore";
 
 import { 
@@ -15,7 +15,7 @@ import {
   Archive,
   UserPen,
   LogOut
-} from "lucide-react"
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -27,87 +27,48 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-import { ProfileCard } from "@/components/profile-card"
+import { ProfileCard } from "@/components/profile-card";
 
 // Menu items.
 const main = [
-  {
-    title: "Home",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "Mission Control",
-    url: "/dashboard/mission-control",
-    icon: GlobeLock,
-  },
-  {
-    title: "Mi6: Chat Room",
-    url: "/dashboard/chat-room",
-    icon: MessagesSquare,
-  },
-  {
-    title: "Agents List",
-    url: "/dashboard/agent-list",
-    icon: Users,
-  },
-  {
-    title: "Aresenal",
-    url: "/dashboard/arsenal",
-    icon: Camera,
-  },
-  {
-    title: "Archive",
-    url: "/dashboard/archive",
-    icon: Archive,
-  },
-]
+  { title: "Home", url: "/dashboard", icon: Home },
+  { title: "Mission Control", url: "/dashboard/mission-control", icon: GlobeLock },
+  { title: "Mi6: Chat Room", url: "/dashboard/chat-room", icon: MessagesSquare },
+  { title: "Agents List", url: "/dashboard/agent-list", icon: Users },
+  { title: "Aresenal", url: "/dashboard/arsenal", icon: Camera },
+  { title: "Archive", url: "/dashboard/archive", icon: Archive },
+];
 
 const footer = [
-  {
-    title: "Profile",
-    url: "/dashboard/profile",
-    icon: UserPen,
-  },
-  {
-    title: "Sign Out",
-    url: "/",
-    icon: LogOut,
-  }
-]
+  { title: "Profile", url: "/dashboard/profile", icon: UserPen },
+  { title: "Sign Out", url: "/logout", icon: LogOut }, // Updated URL to logout page
+];
 
 export function AppSidebar() {
-  const router = useRouter(); // Initialize the Next.js router
+  const router = useRouter();
   const currentPath = usePathname();
-  const { session, clearSession } = useSession(); // Get the session
-  const [loggingOut, setLoggingOut] = useState(false); // State to track logout status
+  const { session } = useSession();
   const [profile, setProfile] = useState({
     name: "John Doe", 
     position: "Software Engineer", 
-    profilePic: "https://github.com/shadcn.png"
-  }); // Default profile data
-  
-  // Logout handler
-  const handleLogout = () => {
-    setLoggingOut(true); // Set loggingOut to true before clearing the session
-    clearSession(); // Clear the session
-  };
+    profilePic: "https://github.com/shadcn.png",
+  });
 
   // Fetch user profile data from Firestore
   useEffect(() => {
     if (session?.id) {
       const fetchProfileData = async () => {
-        const userDocRef = doc(firestoreDB, "agents", session.id); // Assuming 'agents' is the collection
+        const userDocRef = doc(firestoreDB, "agents", session.id);
         const userDocSnap = await getDoc(userDocRef);
-        
+
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
           setProfile({
-            name: userData.firstName + " " + userData.lastName,
+            name: `${userData.firstName} ${userData.lastName}`,
             position: userData.position,
-            profilePic: userData.profilePic || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp", // Use gravatar if no profilePic
+            profilePic: userData.profilePic || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp",
           });
         } else {
           console.log("No such user document!");
@@ -116,14 +77,7 @@ export function AppSidebar() {
 
       fetchProfileData();
     }
-  }, [session]); // Re-fetch when session changes
-
-  // useEffect to handle redirect after logout
-  useEffect(() => {
-    if (loggingOut) {
-      router.push("/"); // Redirect to the login page after session is cleared
-    }
-  }, [loggingOut, router]);
+  }, [session]);
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -144,7 +98,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <button
-                      onClick={() => router.push(item.url)} // Use router.push for navigation
+                      onClick={() => router.push(item.url)}
                       className={`flex items-center ${currentPath === item.url ? 'bg-sidebar-accent' : ''}`}
                     >
                       <item.icon className="mr-2" />
@@ -164,7 +118,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild>
                 <button
-                  onClick={item.title === "Sign Out" ? handleLogout : () => router.push(item.url)} // Check if Sign Out
+                  onClick={() => router.push(item.url)}
                   className={`flex items-center ${currentPath === item.url ? 'bg-sidebar-accent' : ''}`}
                 >
                   <item.icon className="mr-2" />

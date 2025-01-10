@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex items-center h-100 w-6 bg-zinc-900">
         <SidebarTrigger />
       </div>
-      <main className="w-full h-full">
+      <main className="flex-grow w-full h-full overflow-auto">
         {children}
       </main>
     </SidebarProvider>

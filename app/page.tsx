@@ -1,40 +1,31 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react';
-import { useSession } from "@/context/SessionContext"; // Import the hook
+import React, { useState, useEffect } from 'react';
+import { useSession } from "@/context/SessionContext";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 
 // Firebase Imports
-
 import { 
   collection, 
   query, 
   where, 
-  getDocs, 
-  addDoc, 
-  updateDoc,
-  deleteDoc, 
-  doc, 
-  serverTimestamp 
+  getDocs 
 } from "firebase/firestore";
 
 // Components Imports
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-
-
-import { firestoreDB } from '@/firebase/initFirebase';
+import { firestoreDB } from '@/firebase/init-firebase';
 
 export default function Home() {
   const router = useRouter();
@@ -42,17 +33,24 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const { setSession } = useSession();
+  const { session, setSession } = useSession();
 
-  // Function to handle login logic by directly comparing email and password in Firestore
+  // Redirect if session exists
+  useEffect(() => {
+    if (session) {
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  // Function to handle login logic
   const handleLogin = async () => {
     try {
       setError(null);
-  
+
       const userRef = collection(firestoreDB, "agents");
       const q = query(userRef, where("email", "==", email));
       const querySnapshot = await getDocs(q);
-  
+
       if (!querySnapshot.empty) {
         querySnapshot.forEach((doc) => {
           const userData = doc.data();
@@ -64,7 +62,7 @@ export default function Home() {
               email: userData.email,
               role: userData.role,
             });
-  
+
             router.push("/dashboard");
           } else {
             setError("Incorrect password. Please try again.");

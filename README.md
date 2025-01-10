@@ -1,3 +1,33 @@
+# Project Status
+
+- Mission Control
+  - Add new event
+  - View some event details
+- Agents List
+  - Add new agent
+  - View some agent details
+- Arsenal
+  - Fully working
+- Profile
+  - Can Edit Details but not pictures
+
+## Things to do
+
+- Mission Control 
+  - Handle adding agent
+  - Handle adding arsenal
+- MI6: Chat Room
+- Agents List
+  - Upload picture
+  - Add more agent details
+  - Add update details
+  - Add modal for existing email error
+- Archive
+- Profile
+  - Upload picture
+
+# Next JS
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

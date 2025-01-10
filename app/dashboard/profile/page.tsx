@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "@/context/SessionContext";  // Assuming you have a session context
-import { firestoreDB } from '@/firebase/initFirebase';  // Firebase import
+import { firestoreDB } from '@/firebase/init-firebase';  // Firebase import
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   Card,

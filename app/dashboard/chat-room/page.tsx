@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function ArchivePage() {
+export default function ChatRoomPage() {
   return (
     <div className="min-h-screen w-full p-6 flex flex-1 flex-col items-center justify-center">
       <h1 className="text-2xl font-semibold mb-6">Currently Under Construction</h1>

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
@@ -28,6 +28,7 @@ export const useSession = () => {
 
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<SessionData | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load session data from local storage when app initializes
   useEffect(() => {
@@ -35,6 +36,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (storedSession) {
       setSession(JSON.parse(storedSession));
     }
+    setIsLoaded(true); // Mark as loaded after session retrieval
   }, []);
 
   const saveSession = (data: SessionData) => {
@@ -46,6 +48,11 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSession(null);
     localStorage.removeItem("userSession");
   };
+
+  // Wait until the session is loaded before rendering children
+  if (!isLoaded) {
+    return null; // or a loading spinner if needed
+  }
 
   return (
     <SessionContext.Provider value={{ session, setSession: saveSession, clearSession }}>

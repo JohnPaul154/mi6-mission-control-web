@@ -6,14 +6,13 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCVU6tuLGkd3OgIy8ljLUPVxJQ5Fwqg2zA",
-  authDomain: "mi6-command-center.firebaseapp.com",
-  projectId: "mi6-command-center",
-  storageBucket: "mi6-command-center.firebasestorage.app",
-  messagingSenderId: "75773355505",
-  appId: "1:75773355505:web:f8df77cdcd166f457c1050"
+  apiKey: "AIzaSyBpKaBLVQwvrc8-1ZVHMAl5ikJGaZ4S7bU",
+  authDomain: "mi6-mission-control.firebaseapp.com",
+  projectId: "mi6-mission-control",
+  storageBucket: "mi6-mission-control.firebasestorage.app",
+  messagingSenderId: "454544835991",
+  appId: "1:454544835991:web:6af0eded42db849bdab0d2"
 };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
