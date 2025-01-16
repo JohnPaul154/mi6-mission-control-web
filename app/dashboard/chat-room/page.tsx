@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { MoreVertical } from "lucide-react";
 
 export default function ChatRoomPage() {
   const [messages, setMessages] = useState<{ id: number; text: string; sender: string }[]>([
@@ -32,8 +33,12 @@ export default function ChatRoomPage() {
       <h1 className="text-3xl font-semibold mb-4 ml-4 min-h-[3%]">Chat</h1>
 
       <Card className="w-full h-full max-h-[96%] flex flex-col justify-between">
-        <CardHeader className="flex-none min-h-[5%]">
-          <CardTitle>Event Name</CardTitle>
+        <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between">
+          <div>
+            <CardTitle className="text-lg font-semibold">Event: Ann & Mark Wedding</CardTitle>
+            <p className="text-sm text-gray-200">Team: John Doe, Jane Smith, Bob Brown</p>
+          </div>
+          <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700"/>
         </CardHeader>
 
         {/* Message Container */}

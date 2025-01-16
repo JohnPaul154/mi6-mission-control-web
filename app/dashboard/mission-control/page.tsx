@@ -103,11 +103,6 @@ export default function MissionControlPage() {
       console.error("Error fetching events:", error);
     }
   };
-  
-  const handleEventClick = (id: string) => {
-    // Navigate to the event details page
-    router.push(`/dashboard/chat-room/`);
-  };
 
   useEffect(() => {
     fetchEvents();
@@ -167,19 +162,14 @@ export default function MissionControlPage() {
             <div className="p-4 space-y-4 ">
               {events.length > 0 ? (
                 events.map((event) => (
-                  <div
-                    key={event.id}
-                    onClick={() => handleEventClick(event.id || "")}
-                  >
-                    <EventCard
-                      id={event.id || ""}
-                      date={""}
-                      eventName={event.eventName}
-                      location={event.location || "Unknown Location"}
-                      agents={agentList}
-                      status={randomStatus}
-                    />
-                  </div>
+                  <EventCard
+                    id={event.id || ""}
+                    date={""}
+                    eventName={event.eventName}
+                    location={event.location || "Unknown Location"}
+                    agents={agentList}
+                    status={randomStatus}
+                  />
                 ))
               ) : (
                 <p>No events available</p>
