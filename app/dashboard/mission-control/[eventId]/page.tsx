@@ -153,62 +153,45 @@ export default function EventPage() {
                   )}
                 </div>
 
-{/* ADD MORE DETAILS   */}
+                <div>
+                  <label className="block mb-1">Layout: </label>
+                  {isEditable ? (
+                    <select
+                      className="border p-2 w-full"
+                      value={event.layout} // You can bind the selected value to the same variable
+                      onChange={(e) => handleInputChange(e, 'layout')}
+                    >	
+                      <option value="Polaroid portait">4R Thin Frame</option>
+                      <option value="Polaroid portait">4R Standard</option>
+                      <option value="4R Landscape">4R Landscape</option>
+                      <option value="Film Strip">Film Strip</option>
+                      <option value="Dedication">Dedication</option>
+                      <option value="2 Shot LandScape">2 Shot LandScape</option>
+                      <option value="Polaroid Landscape">Polaroid Landscape</option>
+                      <option value="Polaroid portait">Polaroid portait</option>
+                    </select>
+                  ) : (
+                    <p>{event.contactNumber}</p>
+                  )}
+                </div>
 
-<div>
-  <label className="block mb-1">Layout: </label>
-  {isEditable ? (
-    <select
-      className="border p-2 w-full"
-      value={event.xxxxx} // You can bind the selected value to the same variable
-      onChange={(e) => handleInputChange(e, 'xxxx')}
-    >	
-      <option value="Polaroid portait">4R Thin Frame</option>
-      <option value="Polaroid portait">4R Standard</option>
-      <option value="4R Landscape">4R Landscape</option>
-      <option value="Film Strip">Film Strip</option>
-      <option value="Dedication">Dedication</option>
-      <option value="2 Shot LandScape">2 Shot LandScape</option>
-      <option value="Polaroid Landscape">Polaroid Landscape</option>
-      <option value="Polaroid portait">Polaroid portait</option>
-    </select>
-  ) : (
-    <p>{event.contactNumber}</p>
-  )}
-</div>
-
-
-{/* ADD MORE DETAILS   */}
-
-
-<div>
-  <label className="block mb-1">Package </label>
-  {isEditable ? (
-    <select
-      className="border p-2 w-full"
-      value={event.contactNumber} // You can bind the selected value to the same variable
-      onChange={(e) => handleInputChange(e, 'xxxx')}
-    >
-      <option value="Package 1">Agent Package</option>
-      <option value="Package 2"> Director Package</option>
-      <option value="Package 3"> Governor's Packege</option>
-  
-    </select>
-  ) : (
-    <p>{event.contactNumber}</p>
-  )}
-</div>
-
-
-
-
-
-
-
-
-
-
-
+                <div>
+                  <label className="block mb-1">Package</label>
+                  {isEditable ? (
+                    <select
+                      className="border p-2 w-full"
+                      value={event.package} // You can bind the selected value to the same variable
+                      onChange={(e) => handleInputChange(e, 'package')}
+                    >
+                      <option value="Package 1">Agent Package</option>
+                      <option value="Package 2"> Director Package</option>
+                      <option value="Package 3"> Governor's Packege</option>
+                  
+                    </select>
+                  ) : (
+                    <p>{event.contactNumber}</p>
+                  )}
+                </div>
 
                 <div>
                   <label className="block mb-1">Location</label>
@@ -254,23 +237,21 @@ export default function EventPage() {
                     <p>{event.contactNumber}</p>
                   )}
                 </div>
-   
-{/* ADD MORE DETAILS   */}
 
-<div>
-  <label className="block mb-1">NOTES:</label>
-  {isEditable ? (
-    <input
-      type="text"
-      className="border p-2 w-full"
-      value={event.addNotes || ""} // Ensure safe access
-      onChange={(e) => handleInputChange(e, "addNotes")} // Correct field name
-      placeholder=""
-    />
-  ) : (
-    <p>{event.addNotes || "No notes available."}</p> // Display fallback if notes are not present
-  )}
-</div>
+                <div>
+                  <label className="block mb-1">NOTES:</label>
+                  {isEditable ? (
+                    <input
+                      type="text"
+                      className="border p-2 w-full"
+                      value={event.notes || ""} // Ensure safe access
+                      onChange={(e) => handleInputChange(e, "notes")} // Correct field name
+                      placeholder=""
+                    />
+                  ) : (
+                    <p>{event.notes || "No notes available."}</p> // Display fallback if notes are not present
+                  )}
+                </div>
 
           
                 <div>

@@ -1,35 +1,67 @@
+'use client';
+
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 export default function ChatRoomPage() {
+  const [messages, setMessages] = useState<{ id: number; text: string; sender: string }[]>([
+    { id: 1, text: "Hello! How can I help you today?", sender: "bot" },
+  ]);
+  const [inputValue, setInputValue] = useState("");
+
+  const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now(), text: inputValue.trim(), sender: "user" },
+    ]);
+    setInputValue("");
+  };
+
   return (
-    <div className="min-h-screen w-full p-6 flex flex-1 flex-col items-center justify-center">
-      <h1 className="text-2xl font-semibold mb-6">Currently Under Construction</h1>
+    <div className="min-full h-full flex p-4 flex-1 flex-col">
+      <h1 className="text-3xl font-semibold mb-4 ml-4 min-h-[3%]">Chat</h1>
 
-      {/* Vertical Layout for Cards with Padding */}
-      <div className="space-y-6 w-full max-w-xl">
-        {/* Mission Card */}
-        <Card className="p-6">
-          <CardHeader>
-            <CardTitle>Notice</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CardDescription>
-              This is page/feature is coming soon.
-            </CardDescription>
-          </CardContent>
-          <CardFooter>
-            {/* Optionally add any footer content here */}
-          </CardFooter>
-        </Card>
+      <Card className="w-full h-full max-h-[96%] flex flex-col justify-between">
+        <CardHeader className="flex-none min-h-[5%]">
+          <CardTitle>Event Name</CardTitle>
+        </CardHeader>
 
-      </div>
+        {/* Message Container */}
+        <CardContent className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 max-h-[85%]">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`p-3 rounded-lg ${
+                message.sender === "user"
+                  ? "bg-blue-100 text-stone-900 self-end text-right"
+                  : "bg-gray-100 text-stone-900 self-start"
+              }`}
+            >
+              {message.text}
+            </div>
+          ))}
+        </CardContent>
+
+        <CardFooter className="flex flex-none gap-2 min-h-[5%]">
+          <Input
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1"
+          />
+          <Button onClick={handleSendMessage}>Send</Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
