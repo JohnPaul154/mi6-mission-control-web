@@ -104,6 +104,10 @@ export default function MissionControlPage() {
     }
   };
   
+  const handleEventClick = (id: string) => {
+    // Navigate to the event details page
+    router.push(`/dashboard/chat-room/`);
+  };
 
   useEffect(() => {
     fetchEvents();
@@ -160,18 +164,22 @@ export default function MissionControlPage() {
       <Card className="flex flex-col w-full h-full">
         <CardContent className="flex-1 flex p-6 gap-6 overflow-hidden">
           <ScrollArea className="w-full max-h-[80vh] rounded-md border">
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 ">
               {events.length > 0 ? (
                 events.map((event) => (
-                  <EventCard
+                  <div
                     key={event.id}
-                    id={event.id || ""}
-                    date={""}
-                    eventName={event.eventName}
-                    location={event.location || "Unknown Location"}
-                    agents={agentList}
-                    status={randomStatus}
-                  />
+                    onClick={() => handleEventClick(event.id || "")}
+                  >
+                    <EventCard
+                      id={event.id || ""}
+                      date={""}
+                      eventName={event.eventName}
+                      location={event.location || "Unknown Location"}
+                      agents={agentList}
+                      status={randomStatus}
+                    />
+                  </div>
                 ))
               ) : (
                 <p>No events available</p>
