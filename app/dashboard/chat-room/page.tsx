@@ -7,6 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -38,7 +43,44 @@ export default function ChatRoomPage() {
             <CardTitle className="text-lg font-semibold">Event: Ann & Mark Wedding</CardTitle>
             <p className="text-sm text-gray-200">Team: John Doe, Jane Smith, Bob Brown</p>
           </div>
-          <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700"/>
+          <Popover>
+            <PopoverTrigger>
+              <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700"/>
+            </PopoverTrigger>
+            <PopoverContent className="flex flex-col p-4 max-h-[50vh] overflow-y-auto">
+              {/* Details Section */}
+              <h2 className="text-2xl self-center font-semibold pb-4">Details</h2>
+
+              <div className="w-full p-4 mb-4 rounded-md shadow-sm">
+                <p className="text-sm  mt-2">Location:</p>
+                <p className="text-sm  mt-2">Date:</p>
+                <p className="text-sm  mt-2">Package:</p>
+                <p className="text-sm  mt-2">Layout:</p>
+                <p className="text-sm  mt-2">Contact Person:</p>
+                <p className="text-sm  mt-2">Contact Number:</p>
+                <p className="text-sm  mt-2">Notes:</p>
+              </div>
+
+              {/* Arsenal Section */}
+              <h2 className="text-2xl self-center  font-semibold pb-4">Arsenal</h2>
+
+              <div className=" w-full p-4 mb-4 rounded-md shadow-sm">
+                <h3 className="text-lg font-semibold">Camera</h3>
+                <p className="text-sm  mt-2">Fujifilm XT-3</p>
+              </div>
+
+              <div className="w-full p-4 mb-4 rounded-md shadow-sm">
+                <h3 className="text-lg font-semibold">Laptop</h3>
+                <p className="text-sm  mt-2">Macbook Pro M1</p>
+              </div>
+
+              <div className=" w-full p-4 mb-4 rounded-md shadow-sm">
+                <h3 className="text-lg font-semibold">Printer</h3>
+                <p className="text-sm  mt-2">Brother Generic Printer</p>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
         </CardHeader>
 
         {/* Message Container */}
