@@ -14,14 +14,23 @@ import {
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useRef, useEffect  } from "react";
 import { MoreVertical } from "lucide-react";
 
 export default function ChatRoomPage() {
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<{ id: number; text: string; sender: string }[]>([
     { id: 1, text: "Hello! How can I help you today?", sender: "bot" },
   ]);
   const [inputValue, setInputValue] = useState("");
+
+  useEffect(() => {
+    // Scroll to the bottom when new messages are added
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -84,7 +93,10 @@ export default function ChatRoomPage() {
         </CardHeader>
 
         {/* Message Container */}
-        <CardContent className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 h-full max-h-[85%]">
+        <CardContent
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 h-full max-h-[80%]"
+        >
           {messages.map((message) => (
             <div
               key={message.id}
@@ -97,6 +109,7 @@ export default function ChatRoomPage() {
               {message.text}
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </CardContent>
 
         <CardFooter className="flex flex-none gap-2 min-h-[5%]">

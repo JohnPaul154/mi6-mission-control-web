@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from 'next/navigation';
-import { getDoc, doc, Timestamp, DocumentReference, updateDoc } from "firebase/firestore";
-import { firestoreDB } from "@/firebase/init-firebase"; // Adjust path if necessary
+import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
+import { firestoreDB } from "@/firebase/init-firebase";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { X, Edit, Save, Plus } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function EventPage() {
 
@@ -20,10 +31,23 @@ export default function EventPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [eventDate, setEventDate] = useState<string>("");
   const [isEditable, setIsEditable] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState<AgentData[]>([]);
+  const [availableCamera, setAvailableCamera] = useState<ArsenalData[]>([]);
+  const [availableLaptop, setAvailableLaptop] = useState<ArsenalData[]>([]);
+  const [availablePrinter, setAvailablePrinter] = useState<ArsenalData[]>([]);
+
+  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
+
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedArsenal, setSelectedArsenal] = useState<ArsenalData | null>(null);
+
+  const [shouldRefetch, setShouldRefetch] = useState(false);
 
   // Function that loads everytime you get to this screen
   useEffect(() => {
     if (eventId) {
+
+      // Fetch event details and fill fields
       const fetchEvent = async () => {
         try {
           const docRef = doc(firestoreDB, "events", eventId);
@@ -31,8 +55,6 @@ export default function EventPage() {
 
           if (docSnap.exists()) {
             const data = docSnap.data() as EventData;
-
-            console.log(data)
 
             // Resolve agents
             const agentNames = await Promise.all(
@@ -58,16 +80,14 @@ export default function EventPage() {
               })
             );
 
-
-
             // Update state with resolved data
             setEventDate(data.eventDate)
 
             setEvent({
               id: docSnap.id || "Unknown ID", // Firestore document ID
-              ...data, // Spread all other properties from data
               agentNames: agentNames,
-              arsenalNames: arsenalNames
+              arsenalNames: arsenalNames,
+              ...data, // Spread all other properties from data
             });
           } else {
             console.error("Event not found");
@@ -78,8 +98,9 @@ export default function EventPage() {
       };
 
       fetchEvent();
+
     }
-  }, [eventId]);
+  }, [eventId, shouldRefetch]);
 
   if (!event) return <div>Loading...</div>;
 
@@ -88,7 +109,7 @@ export default function EventPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
     field: string
   ) => {
     setEvent({
@@ -129,6 +150,186 @@ export default function EventPage() {
     }
   };
 
+  // Fetch all agents for assigning
+
+  const fetchAllAvailableAgents = async () => {
+    try {
+      const agentsCollectionRef = collection(firestoreDB, 'agents');
+      const querySnapshot = await getDocs(agentsCollectionRef);
+  
+      // Extract the data from the documents
+      const agents = querySnapshot.docs.map(doc => ({
+        id: doc.id, 
+        ...doc.data(),
+      })) as AgentData[];
+
+      // Filter to extract unassigned agents
+      const eventAgentIds = event?.agents.map((agentRef: DocumentReference) => agentRef.id) || [];
+      const filteredAgents = agents.filter(agent => !eventAgentIds.includes(agent.id || ""));
+
+      setAvailableAgents(filteredAgents)
+      console.log("Filtered Agents", filteredAgents)
+    } catch (error) {
+      console.error("Error fetching agents: ", error);
+    }
+  };
+
+  // Fetch all arsenal for assigning
+
+  const fetchAllAvailableArsenal = async () => {
+    try {
+      const arsenalCollectionRef = collection(firestoreDB, 'arsenal');
+      const querySnapshot = await getDocs(arsenalCollectionRef);
+  
+      // Extract the data from the documents
+      const arsenal = querySnapshot.docs.map(doc => ({
+        id: doc.id, 
+        ...doc.data(),
+      })) as ArsenalData[];
+
+      // Filter to extract unassigned agents
+      const eventArsenalIds = event?.arsenal.map((agentRef: DocumentReference) => agentRef.id) || [];
+      const filteredArsenal = arsenal.filter(arsenal => !eventArsenalIds.includes(arsenal.id || ""));
+
+      // Further filter the arsenal based on their types
+      const cameras = filteredArsenal.filter(arsenal => arsenal.type === "camera");
+      const laptops = filteredArsenal.filter(arsenal => arsenal.type === "laptop");
+      const printers = filteredArsenal.filter(arsenal => arsenal.type === "printer");
+
+      // Assign the filtered data to the respective state variables
+      setAvailableCamera(cameras);
+      setAvailableLaptop(laptops);
+      setAvailablePrinter(printers);
+
+      console.log("Filtered Arsenal - Cameras:", cameras);
+      console.log("Filtered Arsenal - Laptops:", laptops);
+      console.log("Filtered Arsenal - Printers:", printers);
+    } catch (error) {
+      console.error("Error fetching agents: ", error);
+    }
+  };
+
+  // Handle agent selection change
+  const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedAgentId = e.target.value;
+    const selected = availableAgents.find(agent => agent.id === selectedAgentId);
+    setSelectedAgent(selected || null);
+  };
+
+  const handleAddAgent = async () => {
+    if (selectedAgent && selectedAgent.id) {
+      // Only proceed if selectedAgent is not null and id exists
+      const agentRef = doc(firestoreDB, "agents", selectedAgent.id);
+  
+      // Update the Firestore event document after state update
+      if (event && event?.id) {
+        try {
+          const docRef = doc(firestoreDB, "events", event.id);
+          await updateDoc(docRef, {
+            agents: [...(event?.agents || []), agentRef],
+          });
+          setShouldRefetch(prev => !prev);
+          console.log("Event updated with new agent!");
+        } catch (error) {
+          console.error("Error saving agent to event:", error);
+        }
+      }
+    } else {
+      console.error("Selected agent is invalid or missing ID");
+    }
+  };
+
+  const handleRemoveAgent = async (agentRefToRemove: DocumentReference) => {
+    if (!event || !event.id) {
+      console.error("Event or event ID is missing.");
+      return;
+    }
+  
+    try {
+      // Filter out the document reference to be removed
+      const updatedAgents = (event.agents || []).filter(
+        (agentRef) => agentRef.path !== agentRefToRemove.path
+      );
+
+      // Update Firestore
+      const docRef = doc(firestoreDB, "events", event.id);
+      await updateDoc(docRef, {
+        agents: updatedAgents
+      });
+
+      setShouldRefetch(prev => !prev);
+  
+      console.log("Agent removed successfully!");
+    } catch (error) {
+      console.error("Error removing agent:", error);
+    }
+  }
+
+  // Handle type selection change
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = e.target.value;
+    setSelectedType(selected);
+    setSelectedArsenal(null); // Clear the selected arsenal when type changes
+  };
+
+  // Handle arsenal selection change
+  const handleArsenalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedArsenalId = e.target.value;
+    const selected = [...availableCamera, ...availableLaptop, ...availablePrinter].find(
+      (arsenal) => arsenal.id === selectedArsenalId
+    );
+    setSelectedArsenal(selected || null);
+  };
+
+  const handleAddArsenal = async () => {
+    if (selectedArsenal && selectedArsenal.id) {
+      // Only proceed if selectedAgent is not null and id exists
+      const arsenalRef = doc(firestoreDB, "arsenal", selectedArsenal.id);
+  
+      // Update the Firestore event document after state update
+      if (event && event?.id) {
+        try {
+          const docRef = doc(firestoreDB, "events", event.id);
+          await updateDoc(docRef, {
+            arsenal: [...(event?.arsenal || []), arsenalRef],
+          });
+          setShouldRefetch(prev => !prev);
+          console.log("Event updated with new agent!");
+        } catch (error) {
+          console.error("Error saving arsenal to event:", error);
+        }
+      }
+    } else {
+      console.error("Selected arsenal is invalid or missing ID");
+    }
+  }
+
+  const handleRemoveArsenal = async (arsenalRefToRemove: DocumentReference) => {
+    if (!event || !event.id) {
+      console.error("Event or event ID is missing.");
+      return;
+    }
+  
+    try {
+      // Filter out the document reference to be removed
+      const updatedArsenal = (event.agents || []).filter(
+        (agentRef) => agentRef.path !== arsenalRefToRemove.path
+      );
+
+      // Update Firestore
+      const docRef = doc(firestoreDB, "events", event.id);
+      await updateDoc(docRef, {
+        arsenal: updatedArsenal
+      });
+
+      setShouldRefetch(prev => !prev);
+  
+      console.log("Arsenal removed successfully!");
+    } catch (error) {
+      console.error("Error removing arsenal:", error);
+    }
+  }
+
   return (
     <div className="min-full flex p-4 flex-1 flex-col">
       <h1 className="text-3xl font-semibold mb-4 ml-4">
@@ -143,11 +344,31 @@ export default function EventPage() {
           {/* Details Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex justify-between mb-4">
+                <h2 className="text-xl font-semibold">Details</h2>
 
+                {/* Control Button */}
+                <div className="flex">
+                  <button
+                    onClick={handleEditClick}
+                    className="text-white"
+                  >
+                    {isEditable ? <X /> : <Edit />}
+                  </button>
+                  {isEditable && (
+                    <button
+                      onClick={handleSaveChanges}
+                      className="text-white pl-4"
+                    >
+                      <Save />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Event Name Field */}
-                <div>
+                <div className="md:order-1">
                   <label className="block mb-1">Event Name</label>
                   <input
                     type="text"
@@ -160,7 +381,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Location Field */}
-                <div>
+                <div className="md:order-2">
                   <label className="block mb-1">Location</label>
                   <input
                     type="text"
@@ -173,7 +394,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Layout Field */}
-                <div>
+                <div className="md:order-3">
                   <label className="block mb-1">Layout</label>
                   {isEditable ? (
                     <select
@@ -202,7 +423,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Package Field */}
-                <div>
+                <div className="md:order-4">
                   <label className="block mb-1">Package</label>
                   {isEditable ? (
                     <select
@@ -212,7 +433,7 @@ export default function EventPage() {
                     >
                       <option value="Package 1">Agent Package</option>
                       <option value="Package 2">Director Package</option>
-                      <option value="Package 3">Governor's Packege</option>
+                      <option value="Package 3">Governor's Package</option>
                     </select>
                   ) : (
                     <input
@@ -225,7 +446,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Contact Person Field */}
-                <div>
+                <div className="md:order-5">
                   <label className="block mb-1">Contact Person</label>
                   <input
                     type="text"
@@ -238,7 +459,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Contact Number Field */}
-                <div>
+                <div className="md:order-7">
                   <label className="block mb-1">Contact Number</label>
                   <input
                     type="text"
@@ -251,7 +472,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Date Field */}
-                <div>
+                <div className="md:order-8">
                   <label className="block mb-1">Date</label>
                   <input
                     type="date"
@@ -262,42 +483,78 @@ export default function EventPage() {
                   />
                 </div>
 
-                {/* Contact Notes Field */}
-                <div>
+                {/* Notes Field */}
+                <div className="md:order-6 md:col-span-1 md:row-span-3">
                   <label className="block mb-1">Notes:</label>
-                  <input
-                    type="text"
-                    className="border p-2 w-full"
+                  <textarea
+                    className="border p-2 w-full h-full max-h-52"
                     value={event.notes} // Convert to 'YYYY-MM-DD' format
                     disabled={!isEditable}
                     onChange={(e) => handleInputChange(e, 'notes')}
-                  />
+                  ></textarea>
                 </div>
-
               </div>
+
             </CardContent>
           </Card>
 
           {/* Agents Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Agents</h2>
+              <div className="flex justify-between mb-4">
+                <h2 className="text-xl font-semibold">Agents</h2>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={fetchAllAvailableAgents}
+                      className="text-white pl-4"
+                    >
+                      <Plus />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Assign Agent</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    {/* Select Agent */}
+                    <label className="block mb-4">Select Agent</label>
+                    <select
+                      value={selectedAgent?.id || ""}
+                      onChange={handleAgentChange}
+                      className="w-full p-2 border rounded-md mb-4"
+                    >
+                      <option value="" disabled hidden>Select an agent</option>
+                      {availableAgents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.firstName} {agent.lastName} 
+                        </option>
+                      ))}
+                    </select>
+
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleAddAgent}>Add</AlertDialogAction>
+                    </AlertDialogFooter>
+                    
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                  {event.agentNames && event.agentNames.length > 0 ? (
-                    event.agentNames.map((agent, index) => (
-                      <div key={index}>
+                {event.agents && event.agentNames && event.agents.length > 0 && event.agentNames.length > 0? (
+                    event.agents.map((agentRef, index) => (
+                      <div key={agentRef.id}>
                         <div className="flex justify-between items-center">
-                          <p>{agent}</p>
+                          <p>{event.agentNames![index] || "Unkown Agent"}</p>
                           <button
                             type="button"
-                            onClick={() => { /* Add your remove logic here */ }}
+                            onClick={() => handleRemoveAgent(agentRef)}
                             className="text-red-500"
                           >
-                            Remove
+                            <X />
                           </button>
                         </div>
-                        <Separator className="mt-4"/>
+                        <Separator className="mt-4" />
                       </div>
                     ))
                   ) : (
@@ -311,50 +568,94 @@ export default function EventPage() {
           {/* Arsenal Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Arsenal</h2>
+              <div className="flex justify-between mb-4">
+                <h2 className="text-xl font-semibold">Arsenal</h2>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      onClick={fetchAllAvailableArsenal}
+                      className="text-white pl-4"
+                    >
+                      <Plus />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Add Arsenal</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    {/* Select Arsenal Type */}
+                    <label className="block mb-4">Select Arsenal Type</label>
+                    <select
+                      value={selectedType || ""}
+                      onChange={handleTypeChange}
+                      className="w-full p-2 border rounded-md mb-4"
+                    >
+                      <option value="" disabled hidden>Select type</option>
+                      <option value="Camera">Camera</option>
+                      <option value="Laptop">Laptop</option>
+                      <option value="Printer">Printer</option>
+                    </select>
+
+                    {/* Select Arsenal based on type */}
+                    <label className="block mb-4">Select Arsenal</label>
+                    <select
+                      value={selectedArsenal?.id || ""}
+                      onChange={handleArsenalChange}
+                      className="w-full p-2 border rounded-md mb-4"
+                      disabled={!selectedType} // Disable if no type is selected
+                    >
+                      <option value="" disabled hidden>Select an arsenal</option>
+                      {selectedType === "Camera" &&
+                        availableCamera.map((camera) => (
+                          <option key={camera.id} value={camera.id}>
+                            {camera.name}
+                          </option>
+                        ))}
+                      {selectedType === "Laptop" &&
+                        availableLaptop.map((laptop) => (
+                          <option key={laptop.id} value={laptop.id}>
+                            {laptop.name}
+                          </option>
+                        ))}
+                      {selectedType === "Printer" &&
+                        availablePrinter.map((printer) => (
+                          <option key={printer.id} value={printer.id}>
+                            {printer.name}
+                          </option>
+                        ))}
+                    </select>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleAddArsenal}>Add</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                  {event.arsenalNames && event.arsenalNames.length > 0 ? (
-                    event.arsenalNames.map((item, index) => (
-                      <div key={index}>
+                {event.arsenal && event.arsenalNames && event.agents.length > 0 && event.arsenalNames.length > 0? (
+                    event.arsenal.map((arsenalRef, index) => (
+                      <div key={arsenalRef.id}>
                         <div className="flex justify-between items-center">
-                          <p>{item}</p>
+                          <p>{event.arsenalNames![index] || "Unkown Agent"}</p>
                           <button
                             type="button"
-                            onClick={() => { /* Add your remove logic here */ }}
+                            onClick={() => handleRemoveArsenal(arsenalRef)}
                             className="text-red-500"
                           >
-                            Remove
+                            <X />
                           </button>
                         </div>
-                        <Separator className="mt-4"/>
+                        <Separator className="mt-4" />
                       </div>
                     ))
                   ) : (
-                    <p>No arsenal items available</p>
+                    <p>No agents available</p>
                   )}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
-
-          {/* Control Button */}
-          <div className="flex">
-            <button
-              onClick={handleEditClick}
-              className="bg-blue-500 text-white py-2 px-4 rounded"
-            >
-              {isEditable ? "Cancel" : "Edit"}
-            </button>
-            {isEditable && (
-              <button
-                onClick={handleSaveChanges}
-                className="bg-green-500 text-white py-2 px-4 rounded ml-4"
-              >
-                Save Changes
-              </button>
-            )}
-          </div>
         </CardContent>
       </Card>
     </div>
