@@ -27,21 +27,25 @@ export default function EventPage() {
   const params = useParams();
   const { eventId } = params as { eventId: string };
 
-  // States
+  // Global states
   const [event, setEvent] = useState<EventData | null>(null);
+  const [shouldRefetch, setShouldRefetch] = useState(false);
+
+  // Detail states
   const [eventDate, setEventDate] = useState<string>("");
   const [isEditable, setIsEditable] = useState(false);
+
+  // Agent states
+  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [availableAgents, setAvailableAgents] = useState<AgentData[]>([]);
+
+  // Arsenal states
   const [availableCamera, setAvailableCamera] = useState<ArsenalData[]>([]);
   const [availableLaptop, setAvailableLaptop] = useState<ArsenalData[]>([]);
   const [availablePrinter, setAvailablePrinter] = useState<ArsenalData[]>([]);
-
-  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
-
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedArsenal, setSelectedArsenal] = useState<ArsenalData | null>(null);
 
-  const [shouldRefetch, setShouldRefetch] = useState(false);
 
   // Function that loads everytime you get to this screen
   useEffect(() => {
@@ -156,10 +160,10 @@ export default function EventPage() {
     try {
       const agentsCollectionRef = collection(firestoreDB, 'agents');
       const querySnapshot = await getDocs(agentsCollectionRef);
-  
+
       // Extract the data from the documents
       const agents = querySnapshot.docs.map(doc => ({
-        id: doc.id, 
+        id: doc.id,
         ...doc.data(),
       })) as AgentData[];
 
@@ -180,10 +184,10 @@ export default function EventPage() {
     try {
       const arsenalCollectionRef = collection(firestoreDB, 'arsenal');
       const querySnapshot = await getDocs(arsenalCollectionRef);
-  
+
       // Extract the data from the documents
       const arsenal = querySnapshot.docs.map(doc => ({
-        id: doc.id, 
+        id: doc.id,
         ...doc.data(),
       })) as ArsenalData[];
 
@@ -209,7 +213,7 @@ export default function EventPage() {
     }
   };
 
-  // Handle agent selection change
+  // Function for handling adding agent
   const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedAgentId = e.target.value;
     const selected = availableAgents.find(agent => agent.id === selectedAgentId);
@@ -220,7 +224,7 @@ export default function EventPage() {
     if (selectedAgent && selectedAgent.id) {
       // Only proceed if selectedAgent is not null and id exists
       const agentRef = doc(firestoreDB, "agents", selectedAgent.id);
-  
+
       // Update the Firestore event document after state update
       if (event && event?.id) {
         try {
@@ -244,7 +248,7 @@ export default function EventPage() {
       console.error("Event or event ID is missing.");
       return;
     }
-  
+
     try {
       // Filter out the document reference to be removed
       const updatedAgents = (event.agents || []).filter(
@@ -258,21 +262,20 @@ export default function EventPage() {
       });
 
       setShouldRefetch(prev => !prev);
-  
+
       console.log("Agent removed successfully!");
     } catch (error) {
       console.error("Error removing agent:", error);
     }
   }
 
-  // Handle type selection change
+  // Function for handling adding arsenal
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = e.target.value;
     setSelectedType(selected);
     setSelectedArsenal(null); // Clear the selected arsenal when type changes
   };
 
-  // Handle arsenal selection change
   const handleArsenalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedArsenalId = e.target.value;
     const selected = [...availableCamera, ...availableLaptop, ...availablePrinter].find(
@@ -285,7 +288,7 @@ export default function EventPage() {
     if (selectedArsenal && selectedArsenal.id) {
       // Only proceed if selectedAgent is not null and id exists
       const arsenalRef = doc(firestoreDB, "arsenal", selectedArsenal.id);
-  
+
       // Update the Firestore event document after state update
       if (event && event?.id) {
         try {
@@ -309,7 +312,7 @@ export default function EventPage() {
       console.error("Event or event ID is missing.");
       return;
     }
-  
+
     try {
       // Filter out the document reference to be removed
       const updatedArsenal = (event.agents || []).filter(
@@ -323,7 +326,7 @@ export default function EventPage() {
       });
 
       setShouldRefetch(prev => !prev);
-  
+
       console.log("Arsenal removed successfully!");
     } catch (error) {
       console.error("Error removing arsenal:", error);
@@ -332,12 +335,14 @@ export default function EventPage() {
 
   return (
     <div className="min-full flex p-4 flex-1 flex-col">
+      {/* Header */}
       <h1 className="text-3xl font-semibold mb-4 ml-4">
         Mission Control
         <span className="text-3xl text-zinc-700"> / </span>
         {event.eventName}
       </h1>
 
+      {/* Main Content */}
       <Card className="flex flex-col">
         <CardContent className="flex flex-col p-6 gap-6">
 
@@ -347,7 +352,7 @@ export default function EventPage() {
               <div className="flex justify-between mb-4">
                 <h2 className="text-xl font-semibold">Details</h2>
 
-                {/* Control Button */}
+                {/* Control Buttons */}
                 <div className="flex">
                   <button
                     onClick={handleEditClick}
@@ -503,6 +508,7 @@ export default function EventPage() {
             <CardContent className="p-6">
               <div className="flex justify-between mb-4">
                 <h2 className="text-xl font-semibold">Agents</h2>
+                {/* Add Agent */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
@@ -526,22 +532,20 @@ export default function EventPage() {
                       <option value="" disabled hidden>Select an agent</option>
                       {availableAgents.map((agent) => (
                         <option key={agent.id} value={agent.id}>
-                          {agent.firstName} {agent.lastName} 
+                          {agent.firstName} {agent.lastName}
                         </option>
                       ))}
                     </select>
-
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction onClick={handleAddAgent}>Add</AlertDialogAction>
                     </AlertDialogFooter>
-                    
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                {event.agents && event.agentNames && event.agents.length > 0 && event.agentNames.length > 0? (
+                  {event.agents && event.agentNames && event.agents.length > 0 && event.agentNames.length > 0 ? (
                     event.agents.map((agentRef, index) => (
                       <div key={agentRef.id}>
                         <div className="flex justify-between items-center">
@@ -570,6 +574,7 @@ export default function EventPage() {
             <CardContent className="p-6">
               <div className="flex justify-between mb-4">
                 <h2 className="text-xl font-semibold">Arsenal</h2>
+                {/* Add Arsenal */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
@@ -633,7 +638,7 @@ export default function EventPage() {
               </div>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                {event.arsenal && event.arsenalNames && event.agents.length > 0 && event.arsenalNames.length > 0? (
+                  {event.arsenal && event.arsenalNames && event.agents.length > 0 && event.arsenalNames.length > 0 ? (
                     event.arsenal.map((arsenalRef, index) => (
                       <div key={arsenalRef.id}>
                         <div className="flex justify-between items-center">
@@ -650,7 +655,7 @@ export default function EventPage() {
                       </div>
                     ))
                   ) : (
-                    <p>No agents available</p>
+                    <p>No arsenal available</p>
                   )}
                 </div>
               </ScrollArea>
