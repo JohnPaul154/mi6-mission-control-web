@@ -7,7 +7,7 @@ import { firestoreDB } from "@/firebase/init-firebase"; // Adjust path if necess
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@radix-ui/react-separator";
+import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function EventPage() {
@@ -297,7 +297,7 @@ export default function EventPage() {
                             Remove
                           </button>
                         </div>
-                        <Separator />
+                        <Separator className="mt-4"/>
                       </div>
                     ))
                   ) : (
@@ -327,7 +327,7 @@ export default function EventPage() {
                             Remove
                           </button>
                         </div>
-                        <Separator />
+                        <Separator className="mt-4"/>
                       </div>
                     ))
                   ) : (
