@@ -67,16 +67,9 @@ import {
   Save
 } from 'lucide-react';
 
-interface ArsenalItem {
-  id: string;
-  name: string;
-  type: string;
-  events: DocumentReference[];
-  dateAdded: Date;
-}
 
 export const EquipmentTable: React.FC<{ 
-  equipment: ArsenalItem[], 
+  equipment: ArsenalData[], 
   onDelete: (id: string, type: string) => void, 
   onEdit: (id: string, newName: string) => void 
 }> = ({ equipment, onDelete, onEdit }) => {
@@ -85,8 +78,8 @@ export const EquipmentTable: React.FC<{
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
-  const handleEditClick = (item: ArsenalItem) => {
-    setEditingItemId(item.id);
+  const handleEditClick = (item: ArsenalData) => {
+    setEditingItemId(item.id || "");
     setEditedName(item.name);
   };
 
@@ -118,17 +111,16 @@ export const EquipmentTable: React.FC<{
       <TableHeader>
         <TableRow>
           <TableHead className="w-2/12">ID</TableHead>
-          <TableHead className="w-1/2">Equipment</TableHead>
-          <TableHead>Event</TableHead>
-          <TableHead className="w-[50px] text-right"></TableHead>
+          <TableHead className="w-8/12">Equipment</TableHead>
+          <TableHead className="w-[50px] text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {equipment.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="w-2/12">{item.id}</TableCell>
+          <TableRow key={item.id || ""}>
+            <TableCell className="w-2/12">{item.id || ""}</TableCell>
             <TableCell className="w-1/2">
-              {editingItemId === item.id ? (
+              {editingItemId === item.id || "" ? (
                 <input
                   type="text"
                   value={editedName}
@@ -139,10 +131,9 @@ export const EquipmentTable: React.FC<{
                 item.name
               )}
             </TableCell>
-            <TableCell>{item.events.length > 0 ? item.events.join(", ") : "-"}</TableCell>
-            <TableCell>
-              <div className="flex space-x-2">
-                {editingItemId === item.id ? (
+            <TableCell className="text-right">
+              <div className="flex justify-end space-x-2">
+                {editingItemId === item.id || "" ? (
                   <>
                     <AlertDialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
                       <AlertDialogTrigger asChild>
@@ -210,7 +201,7 @@ export const EquipmentTable: React.FC<{
                         <p>Are you sure you want to delete "{item.name}"?</p>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDelete(item.id, item.type)}>
+                          <AlertDialogAction onClick={() => onDelete(item.id || "", item.type)}>
                             Delete
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -230,14 +221,14 @@ export const EquipmentTable: React.FC<{
 
 
 const ArsenalPage: React.FC = () => {
-  const [cameraEquipment, setCameraEquipment] = useState<ArsenalItem[]>([]);
-  const [laptopEquipment, setLaptopEquipment] = useState<ArsenalItem[]>([]);
-  const [printerEquipment, setPrinterEquipment] = useState<ArsenalItem[]>([]);
+  const [cameraEquipment, setCameraEquipment] = useState<ArsenalData[]>([]);
+  const [laptopEquipment, setLaptopEquipment] = useState<ArsenalData[]>([]);
+  const [printerEquipment, setPrinterEquipment] = useState<ArsenalData[]>([]);
   const [selectedTab, setSelectedTab] = useState<string>('camera');  // Track selected tab
 
   const fetchEquipments = async (
     type: string,
-    setState: React.Dispatch<React.SetStateAction<ArsenalItem[]>>
+    setState: React.Dispatch<React.SetStateAction<ArsenalData[]>>
   ) => {
     try {
       const q = query(collection(firestoreDB, "arsenal"), where("type", "==", type));
@@ -247,33 +238,7 @@ const ArsenalPage: React.FC = () => {
       const equipment = await Promise.all(
         querySnapshot.docs.map(async (docSnapshot) => {
           const data = docSnapshot.data();
-  
-          // If the events field exists and is an array of references
-          if (data.events && Array.isArray(data.events)) {
-            const eventStrings = await Promise.all(
-              data.events.map(async (eventRef: DocumentReference) => {
-                try {
-                  console.log("Event Reference Type:", eventRef.path);
-                  console.log("Is DocumentReference:", eventRef instanceof DocumentReference);
-                  const eventDoc = await getDoc(eventRef);
-                  console.log("eventDoc:", eventDoc)
-                  if (eventDoc.exists()) {
-                    const eventData = eventDoc.data() as EventData;
-                    
-                    return eventData.eventName || "Unknown Event";
-                  } else {
-                    return "Unknown Event (Reference not found)";
-                  }
-                } catch (error) {
-                  console.error("Error fetching event data:", error);
-                  return "Error loading event";
-                }
-              })
-            );
-            data.events = eventStrings; // Replace references with strings
-          }
-  
-          return { id: docSnapshot.id, ...data } as ArsenalItem;
+          return { id: docSnapshot.id, ...data } as ArsenalData;
         })
       );
   

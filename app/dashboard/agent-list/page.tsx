@@ -50,7 +50,6 @@ export default function AgentListPage() {
           id: docSnapshot.id, // Add the document ID to each agent's data
           avatar: data.avatar || "https://via.placeholder.com/150", // Default avatar URL if missing
           email: data.email || "No Email Provided",
-          events: data.events || [],
           firstName: data.firstName || "Unknown",
           isActive: data.isActive || false,
           isEmployed: data.isEmployed || false,
@@ -134,7 +133,6 @@ export default function AgentListPage() {
       const newAgent: AgentData = {
         avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp", // Default avatar URL if missing
         email: email,
-        events: [], // Empty events array for now
         firstName: firstName,
         isActive: true, // Default active status
         isEmployed: true, // Default employed status

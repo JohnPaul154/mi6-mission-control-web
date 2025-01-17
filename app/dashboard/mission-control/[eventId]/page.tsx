@@ -11,14 +11,17 @@ import { Separator } from "@radix-ui/react-separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function EventPage() {
-  const params = useParams();
-  const { eventId } = params as { eventId: string }; // Explicitly typing the parameter
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [agentList, setAgentList] = useState<string[]>([]); // State for agents
-  const [arsenalList, setArsenalList] = useState<string[]>([]); // State for arsenal
-  const [eventDate, setEventDate] = useState<string>(""); 
-  const [isEditable, setIsEditable] = useState(false); // State for edit mode
 
+  // Parameters (in the url)
+  const params = useParams();
+  const { eventId } = params as { eventId: string };
+
+  // States
+  const [event, setEvent] = useState<EventData | null>(null);
+  const [eventDate, setEventDate] = useState<string>("");
+  const [isEditable, setIsEditable] = useState(false);
+
+  // Function that loads everytime you get to this screen
   useEffect(() => {
     if (eventId) {
       const fetchEvent = async () => {
@@ -30,11 +33,6 @@ export default function EventPage() {
             const data = docSnap.data() as EventData;
 
             console.log(data)
-
-            // Resolve event date
-            data.eventDate && data.eventDate instanceof Timestamp
-              ? setEventDate(data.eventDate.toDate().toLocaleDateString() || "")
-              : setEventDate("Unknown Date");
 
             // Resolve agents
             const agentNames = await Promise.all(
@@ -48,8 +46,6 @@ export default function EventPage() {
               })
             );
 
-            setAgentList(agentNames);
-
             // Resolve arsenal
             const arsenalNames = await Promise.all(
               (data.arsenal || []).map(async (itemRef: DocumentReference) => {
@@ -62,12 +58,16 @@ export default function EventPage() {
               })
             );
 
-            setArsenalList(arsenalNames);
+
 
             // Update state with resolved data
+            setEventDate(data.eventDate)
+
             setEvent({
               id: docSnap.id || "Unknown ID", // Firestore document ID
               ...data, // Spread all other properties from data
+              agentNames: agentNames,
+              arsenalNames: arsenalNames
             });
           } else {
             console.error("Event not found");
@@ -87,22 +87,26 @@ export default function EventPage() {
     setIsEditable(!isEditable); // Toggle edit mode
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    field: string
+  ) => {
     setEvent({
       ...event,
-      [field]: e.target.value
+      [field]: e.target.value, // Change value based on each textbox
     });
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDate = new Date(e.target.value);
+    const newDate = e.target.value
+    // Update state
     setEvent({
       ...event,
-      eventDate: new Timestamp(newDate.getTime() / 1000, 0)
+      eventDate: newDate, // Store the date to event data
     });
+    setEventDate(newDate); // Update the eventDate state with the formatted string
   };
 
-  // Placeholder function for saving changes
   const handleSaveChanges = async () => {
     if (event && event.id) {
       try {
@@ -110,12 +114,13 @@ export default function EventPage() {
         await updateDoc(docRef, {
           eventName: event.eventName,
           location: event.location,
+          layout: event.layout,
           package: event.package,
-          contactNumber: event.contactNumber,
           contactPerson: event.contactPerson,
-          eventDate: event.eventDate
+          contactNumber: event.contactNumber,
+          eventDate: event.eventDate,
+          notes: event.notes,
         });
-
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
       } catch (error) {
@@ -134,35 +139,51 @@ export default function EventPage() {
 
       <Card className="flex flex-col">
         <CardContent className="flex flex-col p-6 gap-6">
+
+          {/* Details Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-6">Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Event Name Field */}
                 <div>
                   <label className="block mb-1">Event Name</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      className="border p-2 w-full"
-                      value={event.eventName}
-                      onChange={(e) => handleInputChange(e, 'eventName')}
-                      placeholder="Enter event name"
-                    />
-                  ) : (
-                    <p>{event.eventName}</p>
-                  )}
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.eventName}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'eventName')}
+                    placeholder="Enter event name"
+                  />
                 </div>
 
+                {/* Location Field */}
                 <div>
-                  <label className="block mb-1">Layout: </label>
+                  <label className="block mb-1">Location</label>
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.location}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'location')}
+                    placeholder="Enter location"
+                  />
+                </div>
+
+                {/* Layout Field */}
+                <div>
+                  <label className="block mb-1">Layout</label>
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.layout} // You can bind the selected value to the same variable
+                      value={event.layout}
+                      disabled={!isEditable}
                       onChange={(e) => handleInputChange(e, 'layout')}
-                    >	
-                      <option value="Polaroid portait">4R Thin Frame</option>
-                      <option value="Polaroid portait">4R Standard</option>
+                    >
+                      <option value="4R Thin Frame">4R Thin Frame</option>
+                      <option value="4R Standard">4R Standard</option>
                       <option value="4R Landscape">4R Landscape</option>
                       <option value="Film Strip">Film Strip</option>
                       <option value="Dedication">Dedication</option>
@@ -171,114 +192,100 @@ export default function EventPage() {
                       <option value="Polaroid portait">Polaroid portait</option>
                     </select>
                   ) : (
-                    <p>{event.contactNumber}</p>
+                    <input
+                      type="text"
+                      className="border p-2 w-full"
+                      value={event.layout}
+                      disabled={!isEditable}
+                    />
                   )}
                 </div>
 
+                {/* Package Field */}
                 <div>
                   <label className="block mb-1">Package</label>
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.package} // You can bind the selected value to the same variable
+                      value={event.package}
                       onChange={(e) => handleInputChange(e, 'package')}
                     >
                       <option value="Package 1">Agent Package</option>
-                      <option value="Package 2"> Director Package</option>
-                      <option value="Package 3"> Governor's Packege</option>
-                  
+                      <option value="Package 2">Director Package</option>
+                      <option value="Package 3">Governor's Packege</option>
                     </select>
                   ) : (
-                    <p>{event.contactNumber}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block mb-1">Location</label>
-                  {isEditable ? (
                     <input
                       type="text"
                       className="border p-2 w-full"
-                      value={event.location}
-                      onChange={(e) => handleInputChange(e, 'location')}
-                      placeholder="Enter location"
+                      value={event.package}
+                      disabled={!isEditable}
                     />
-                  ) : (
-                    <p>{event.location}</p>
-                  )}
-                </div>
-          
-                <div>
-                  <label className="block mb-1">Date</label>
-                  {isEditable ? (
-                    <input
-                      type="date"
-                      className="border p-2 w-full"
-                      value={eventDate}
-                      onChange={handleDateChange}
-                    />
-                  ) : (
-                    <p>{eventDate}</p>
                   )}
                 </div>
 
-
+                {/* Contact Person Field */}
                 <div>
                   <label className="block mb-1">Contact Person</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      className="border p-2 w-full"
-                      value={event.contactNumber}
-                      onChange={(e) => handleInputChange(e, 'contactNumber')}
-                      placeholder="Enter contact person"
-                    />
-                  ) : (
-                    <p>{event.contactNumber}</p>
-                  )}
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.contactNumber}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'contactNumber')}
+                    placeholder="Enter contact person"
+                  />
                 </div>
 
-                <div>
-                  <label className="block mb-1">NOTES:</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      className="border p-2 w-full"
-                      value={event.notes || ""} // Ensure safe access
-                      onChange={(e) => handleInputChange(e, "notes")} // Correct field name
-                      placeholder=""
-                    />
-                  ) : (
-                    <p>{event.notes || "No notes available."}</p> // Display fallback if notes are not present
-                  )}
-                </div>
-
-          
+                {/* Contact Number Field */}
                 <div>
                   <label className="block mb-1">Contact Number</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      className="border p-2 w-full"
-                      value={event.contactPerson}
-                      onChange={(e) => handleInputChange(e, 'contactPerson')}
-                      placeholder="Enter contact number"
-                    />
-                  ) : (
-                    <p>{event.contactPerson}</p>
-                  )}
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.contactPerson}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'contactPerson')}
+                    placeholder="Enter contact number"
+                  />
                 </div>
+
+                {/* Date Field */}
+                <div>
+                  <label className="block mb-1">Date</label>
+                  <input
+                    type="date"
+                    className="border p-2 w-full"
+                    value={eventDate}
+                    disabled={!isEditable}
+                    onChange={handleDateChange}
+                  />
+                </div>
+
+                {/* Contact Notes Field */}
+                <div>
+                  <label className="block mb-1">Notes:</label>
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.notes} // Convert to 'YYYY-MM-DD' format
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'notes')}
+                  />
+                </div>
+
               </div>
             </CardContent>
           </Card>
 
+          {/* Agents Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4">Agents</h2>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                  {agentList && agentList.length > 0 ? (
-                    agentList.map((agent, index) => (
+                  {event.agentNames && event.agentNames.length > 0 ? (
+                    event.agentNames.map((agent, index) => (
                       <div key={index}>
                         <div className="flex justify-between items-center">
                           <p>{agent}</p>
@@ -290,7 +297,7 @@ export default function EventPage() {
                             Remove
                           </button>
                         </div>
-                        <Separator/>
+                        <Separator />
                       </div>
                     ))
                   ) : (
@@ -301,13 +308,14 @@ export default function EventPage() {
             </CardContent>
           </Card>
 
+          {/* Arsenal Card */}
           <Card className="flex flex-col mb-6">
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4">Arsenal</h2>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                  {arsenalList && arsenalList.length > 0 ? (
-                    arsenalList.map((item, index) => (
+                  {event.arsenalNames && event.arsenalNames.length > 0 ? (
+                    event.arsenalNames.map((item, index) => (
                       <div key={index}>
                         <div className="flex justify-between items-center">
                           <p>{item}</p>
@@ -319,7 +327,7 @@ export default function EventPage() {
                             Remove
                           </button>
                         </div>
-                        <Separator/>
+                        <Separator />
                       </div>
                     ))
                   ) : (
@@ -330,6 +338,7 @@ export default function EventPage() {
             </CardContent>
           </Card>
 
+          {/* Control Button */}
           <div className="flex">
             <button
               onClick={handleEditClick}

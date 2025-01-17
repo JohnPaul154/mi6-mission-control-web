@@ -38,17 +38,17 @@ export default function ChatRoomPage() {
       <h1 className="text-3xl font-semibold mb-4 ml-4 min-h-[3%]">Chat</h1>
 
       <Card className="w-full h-full max-h-[96%] flex flex-col justify-between">
-        <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between">
+        <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between border-b-2">
           <div>
-            <CardTitle className="text-lg font-semibold">Event: Ann & Mark Wedding</CardTitle>
-            <p className="text-sm text-gray-200">Team: John Doe, Jane Smith, Bob Brown</p>
+            <CardTitle className="text-lg font-semibold">MI6 Chat Room</CardTitle>
           </div>
-          <Popover>
+
+          {/* <Popover>
             <PopoverTrigger>
               <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700"/>
             </PopoverTrigger>
             <PopoverContent className="flex flex-col p-4 max-h-[50vh] overflow-y-auto">
-              {/* Details Section */}
+              
               <h2 className="text-2xl self-center font-semibold pb-4">Details</h2>
 
               <div className="w-full p-4 mb-4 rounded-md shadow-sm">
@@ -61,7 +61,7 @@ export default function ChatRoomPage() {
                 <p className="text-sm  mt-2">Notes:</p>
               </div>
 
-              {/* Arsenal Section */}
+              
               <h2 className="text-2xl self-center  font-semibold pb-4">Arsenal</h2>
 
               <div className=" w-full p-4 mb-4 rounded-md shadow-sm">
@@ -79,12 +79,12 @@ export default function ChatRoomPage() {
                 <p className="text-sm  mt-2">Brother Generic Printer</p>
               </div>
             </PopoverContent>
-          </Popover>
+          </Popover> */}
           
         </CardHeader>
 
         {/* Message Container */}
-        <CardContent className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 max-h-[85%]">
+        <CardContent className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 h-full max-h-[85%]">
           {messages.map((message) => (
             <div
               key={message.id}

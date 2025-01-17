@@ -19,13 +19,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"; // Import AlertDialog components
+import { stringify } from "querystring";
 
 export default function MissionControlPage() {
   const router = useRouter();
 
   const [events, setEvents] = useState<EventData[]>([]); // State for events
-  const [agentList, setAgentList] = useState<string[]>([]); // State for agents
-  const [arsenalList, setArsenalList] = useState<string[]>([]); // State for arsena
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State for the AlertDialog visibility
   const [newEventName, setNewEventName] = useState("");
 
@@ -37,21 +36,22 @@ export default function MissionControlPage() {
     try {
       const querySnapshot = await getDocs(collection(firestoreDB, "events"));
       const eventsData: EventData[] = [];
-      const allAgents: string[] = []; // Temporary list for all agents
-      const allArsenal: string[] = []; // Temporary list for all arsenal items
   
-      for (const docSnapshot of querySnapshot.docs) {
-        const data = docSnapshot.data();
+      // Fetch all event documents
+      const eventPromises = querySnapshot.docs.map(async (docSnapshot) => {
+        const data = docSnapshot.data() as Partial<EventData>;
   
-        // Resolve agent references to their actual data (use ids for rendering)
+        // Resolve agent references to their actual data (use IDs for rendering)
         const agentNames = await Promise.all(
           (data.agents || []).map(async (agentRef: DocumentReference) => {
-            const agentDoc = await getDoc(agentRef);
-            if (agentDoc.exists()) {
-              const agentData = agentDoc.data() as AgentData;
-              const fullName = `${agentData.firstName} ${agentData.lastName}`;
-              allAgents.push(fullName); // Add to the temporary list
-              return fullName; // Return full name for this event
+            try {
+              const agentDoc = await getDoc(agentRef);
+              if (agentDoc.exists()) {
+                const agentData = agentDoc.data() as AgentData;
+                return `${agentData.firstName} ${agentData.lastName}`;
+              }
+            } catch (error) {
+              console.warn("Error fetching agent data:", error);
             }
             return "Unknown Agent";
           })
@@ -60,49 +60,53 @@ export default function MissionControlPage() {
         // Resolve arsenal references to their names
         const arsenalNames = await Promise.all(
           (data.arsenal || []).map(async (arsenalRef: DocumentReference) => {
-            const arsenalDoc = await getDoc(arsenalRef);
-            if (arsenalDoc.exists()) {
-              const arsenalData = arsenalDoc.data();
-              const arsenalName = arsenalData.name || "Unnamed Arsenal";
-              allArsenal.push(arsenalName); // Add to the temporary list
-              return arsenalName; // Return name for this event
+            try {
+              const arsenalDoc = await getDoc(arsenalRef);
+              if (arsenalDoc.exists()) {
+                const arsenalData = arsenalDoc.data();
+                return arsenalData.name || "Unnamed Arsenal";
+              }
+            } catch (error) {
+              console.warn("Error fetching arsenal data:", error);
             }
             return "Unknown Arsenal";
           })
         );
   
-        // Push the event data with resolved agents and arsenal as strings
-        eventsData.push({
+        // Return the event data with resolved names
+        return {
           id: docSnapshot.id,
-          agents: agentNames || [],
-          arsenal: arsenalNames || [],
-          callTime: data.callTime || Timestamp.now(),
-          contactNumber: data.contactNumber || "",
-          contactPerson: data.contactPerson || "",
-          dateAdded: data.dateAdded || Timestamp.now(),
-          eventDate: data.eventDate || Timestamp.now(),
+          agentNames,
+          arsenalNames,
+          agents: data.agents || [],
+          arsenal: data.arsenal || [],
+          callTime: data.callTime || new Timestamp(0, 0), // Replace with valid default
+          contactNumber: data.contactNumber || "N/A",
+          contactPerson: data.contactPerson || "Unknown",
+          dateAdded: data.dateAdded || new Timestamp(0, 0),
+          eventDate: data.eventDate || "",
           eventName: data.eventName || "Unnamed Event",
           location: data.location || "Unknown Location",
-          package: data.package || "Unknown Package",
+          package: data.package || "No Package",
+          layout: data.layout || "No Layout",
+          notes: data.notes || "",
           isArchive: data.isArchive || false,
-        });
-      }
+        };
+      });
   
-      // Filter out events where isArchive is true
-      const filteredEvents = eventsData.filter((event) => !event.isArchive);
+      // Resolve all events and filter archived ones
+      const resolvedEvents = await Promise.all(eventPromises);
+      const filteredEvents = resolvedEvents.filter((event) => !event.isArchive);
   
-      // Update the state variables
+      // Update state variables
       setEvents(filteredEvents);
-      setAgentList([...new Set(allAgents)]); // Ensure unique agent names
-      setArsenalList([...new Set(allArsenal)]); // Ensure unique arsenal names
   
       console.log(filteredEvents); // Debugging log for events
-      console.log("Agents:", allAgents); // Debugging log for agents
-      console.log("Arsenal:", allArsenal); // Debugging log for arsenal
     } catch (error) {
       console.error("Error fetching events:", error);
     }
   };
+  
 
   useEffect(() => {
     fetchEvents();
@@ -122,7 +126,7 @@ export default function MissionControlPage() {
       contactPerson: "N/A", // Placeholder
       package: "N/A", // Placeholder
       callTime: Timestamp.now(), // Default to now
-      eventDate: Timestamp.now(), // Placeholder event date
+      eventDate: "", // Placeholder event date
       dateAdded: Timestamp.now(), // Current timestamp
       isArchive: false, // Default isArchive value
     };
@@ -167,7 +171,7 @@ export default function MissionControlPage() {
                     date={""}
                     eventName={event.eventName}
                     location={event.location || "Unknown Location"}
-                    agents={agentList}
+                    agents={event.agentNames || []}
                     status={randomStatus}
                   />
                 ))
