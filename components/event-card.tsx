@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { Edit, Archive } from "lucide-react";
+import { Edit, Archive, Trash, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-import { 
-  Card, 
-  CardContent, 
-  CardFooter 
+import {
+  Card,
+  CardContent,
+  CardFooter
 } from "@/components/ui/card";
 
 import {
@@ -21,16 +21,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"; 
+} from "@/components/ui/alert-dialog";
 
-// EventCard Props, including both date and time and a unique id
+import { firestoreDB } from "@/firebase/init-firebase";
+import { updateDoc, doc, deleteDoc } from "firebase/firestore";
+
 interface EventCardProps {
-  id: string; 
-  date: string; 
+  id: string;
+  date: string;
   eventName: string;
   location: string;
   agents: string[];
-  status: string; 
+  status: string;
+  role: string;
+  isArchive: boolean;
+  onUpdate?: () => void;
 }
 
 export function EventCard({
@@ -40,13 +45,17 @@ export function EventCard({
   location,
   agents,
   status,
-}: EventCardProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // State to manage the dialog visibility
-  const router = useRouter(); // useRouter hook for navigation
+  role,
+  isArchive,
+  onUpdate,
+}: EventCardProps & { onUpdate: () => void }) {
 
-  // Define the status text and background color styles
+  // Global parameters
+  const router = useRouter();
+  const isAdmin = role === "admin";
   let statusBgClass = "";
 
+  // Switch for status
   switch (status) {
     case "good":
       statusBgClass = "bg-green-500";
@@ -59,34 +68,64 @@ export function EventCard({
       break;
   }
 
-  // Handle Edit button click (navigate to the edit page with id as query)
+  // Button Handlers
   const handleEditClick = () => {
-    router.push(`/dashboard/mission-control/${id}`); // Navigate with event id for editing
+    router.push(`/dashboard/mission-control/${id}`);
   };
 
-  // Handle Archive button click (show the dialog)
-  const handleArchiveClick = () => {
-    //
+  const handleArchive = async () => {
+    try {
+      const docRef = doc(firestoreDB, "events", id);
+      await updateDoc(docRef, {
+        isArchive: true,
+      });
+      onUpdate();
+      console.log("Field updated successfully!");
+    } catch (error) {
+      console.error("Error updating field:", error);
+    }
   };
 
-  // Handle archiving the event (just a placeholder function for now)
-  const handleConfirmArchive = () => {
-    console.log(`Event with id ${id} archived!`);
-    setIsDialogOpen(false); // Close the dialog after confirming
-  };
+  const handleRestore = async () => {
+    try {
+      const docRef = doc(firestoreDB, "events", id);
+      await updateDoc(docRef, {
+        isArchive: false,
+      });
+      onUpdate();
+      console.log("Field updated successfully!");
+    } catch (error) {
+      console.error("Error updating field:", error);
+    }
+  }
 
+  const handleDelete = async () => {
+    try {
+      const docRef = doc(firestoreDB, "events", id);
+      await deleteDoc(docRef);
+      onUpdate();
+      console.log("Document deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting document:", error);
+    }
+  }
+
+  // Go to chat
   const handleEventClick = (id: string) => {
-      // Navigate to the event details page
-      router.push(`/dashboard/chat/${id}`);
-    };
+    if (isArchive) {
+      handleRestore(); // Restore event if it is archived
+    } else {
+      router.push(`/dashboard/chat/${id}`); // Navigate to chat if it's not archived
+    }
+  };
 
   return (
     <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md">
-      <CardContent className="w-full">
+      <CardContent className="w-full pb-0">
         <div
           key={id}
           onClick={() => handleEventClick(id || "")}
-          className="flex flex-row w-full gap-6 pt-0 pb-0"
+          className="flex flex-row w-full"
         >
           {/* Date Partition */}
           <div className="flex-none min-w-32 items-center flex justify-center">
@@ -100,7 +139,7 @@ export function EventCard({
 
             {/* Agents List */}
             <div className="flex gap-2 mt-2 flex-wrap">
-              Team: 
+              Team:
               {agents.length > 0 ? (
                 agents.map((agent, index) => (
                   <Badge key={index} className="bg-zinc-200 py-1 px-2 rounded-md">
@@ -116,47 +155,102 @@ export function EventCard({
           </div>
 
           {/* Status Partition */}
-          <div
-            className={`flex items-center justify-center flex-none w-1/6 py-2 text-white font-medium rounded-md ${statusBgClass}`}
-          >
-            Status
-          </div>
-      </div>
+          {!isArchive && (
+            <div
+              className={`flex items-center justify-center flex-none w-1/6 py-2 text-white font-medium rounded-md ${statusBgClass}`}
+            >
+              Status
+            </div>
+          )}
+        </div>
       </CardContent>
 
-      {/* Control Partition (Edit, Archive) */}
-      <CardFooter className="flex flex-col justify-end gap-4 p-2">
-        {/* Edit Button */}
-        <button
-          onClick={handleEditClick}
-          className="flex items-center p-2 hover:bg-zinc-500 rounded-md"
-        >
-          <Edit className="w-5 h-5" />
-        </button>
+      {/* Control Partition Edit|Archive (only for admin) */}
+      {isAdmin && (
+        <CardFooter className="flex flex-col justify-end gap-4 p-2">
+          {isArchive ? (
+            // If it is archived, show "Return" and "Delete" buttons
+            <>
+              <AlertDialog>
+                <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
+                  <ArchiveRestore className="w-5 h-5" />
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Restore Event</AlertDialogTitle>
+                  </AlertDialogHeader>
+                  <div className="py-2">
+                    Are you sure you want to restore this event?
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRestore}>
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
-        {/* Archive Button */}
-        <AlertDialog>
-          <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
-            <Archive className="w-5 h-5" />
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Archive</AlertDialogTitle>
-            </AlertDialogHeader>
-            <div className="py-2">
-              Are you sure you want to archive this event?
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmArchive}>
-                Confirm
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </CardFooter>
+              <AlertDialog>
+                <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
+                  <Trash className="w-5 h-5" />
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Deleting Event</AlertDialogTitle>
+                  </AlertDialogHeader>
+                  <div className="py-2">
+                    <p className="text-red-500 font-semibold">This is irreversable!</p>
+                    <p>Are you sure you want to permanently delete this event?</p>
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : (
+            // If not archived, show "Edit" and "Archive" buttons
+            <>
+              <button
+                onClick={handleEditClick}
+                className="flex items-center p-2 hover:bg-zinc-500 rounded-md"
+              >
+                <Edit className="w-5 h-5" />
+              </button>
+
+              <AlertDialog>
+                <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
+                  <Archive className="w-5 h-5" />
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Archive</AlertDialogTitle>
+                  </AlertDialogHeader>
+                  <div className="py-2">
+                    Are you sure you want to archive this event?
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleArchive}>
+                      Confirm
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
 }

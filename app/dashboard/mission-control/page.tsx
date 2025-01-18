@@ -6,9 +6,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventCard } from "@/components/event-card";
 import { Plus } from "lucide-react";
-import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference } from "firebase/firestore";
+import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference, query, where, doc } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
-import { AgentData, EventData } from "@/firebase/collection-types"; 
+import { AgentData, EventData } from "@/firebase/collection-types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,13 +20,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 import { set, ref } from "firebase/database";
+import { useSession } from "@/contexts/SessionContext";
 
 export default function MissionControlPage() {
+
   const router = useRouter();
+
+  const { session } = useSession()
+  const isAdmin = session!.role === "admin";
 
   const [events, setEvents] = useState<EventData[]>([]); // State for events
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State for the AlertDialog visibility
   const [newEventName, setNewEventName] = useState("");
+
+  const [trigger, setTrigger] = useState(false); // Example state to trigger an effect
+
+  const triggerUpdate = () => {
+    setTrigger((prev) => !prev); // Toggle the state to trigger parent logic
+  };
 
   const statuses: ("good" | "alert" | "critical")[] = ["good", "alert", "critical"];
   const randomStatus: "good" | "alert" | "critical" = statuses[Math.floor(Math.random() * statuses.length)];
@@ -34,13 +45,25 @@ export default function MissionControlPage() {
   // Fetch the event data and ensure the references are resolved before rendering
   const fetchEvents = async () => {
     try {
-      const querySnapshot = await getDocs(collection(firestoreDB, "events"));
+      let q = query(
+        collection(firestoreDB, "events"),
+        where("isArchive", "==", false)
+      );
+
+      console.log(session!.id)
+
+      // Fetch only those assigned to the user if not admin
+      if (session!.role !== "admin") {
+        q = query(q, where("agents", "array-contains", doc(firestoreDB, "agents", session!.id)));
+      }
+
+      const querySnapshot = await getDocs(q);
       const eventsData: EventData[] = [];
-  
+
       // Fetch all event documents
       const eventPromises = querySnapshot.docs.map(async (docSnapshot) => {
         const data = docSnapshot.data() as Partial<EventData>;
-  
+
         // Resolve agent references to their actual data (use IDs for rendering)
         const agentNames = await Promise.all(
           (data.agents || []).map(async (agentRef: DocumentReference) => {
@@ -56,7 +79,7 @@ export default function MissionControlPage() {
             return "Unknown Agent";
           })
         );
-  
+
         // Resolve arsenal references to their names
         const arsenalNames = await Promise.all(
           (data.arsenal || []).map(async (arsenalRef: DocumentReference) => {
@@ -72,7 +95,7 @@ export default function MissionControlPage() {
             return "Unknown Arsenal";
           })
         );
-  
+
         // Return the event data with resolved names
         return {
           id: docSnapshot.id,
@@ -80,41 +103,40 @@ export default function MissionControlPage() {
           arsenalNames,
           agents: data.agents || [],
           arsenal: data.arsenal || [],
-          contactNumber: data.contactNumber || "N/A",
-          contactPerson: data.contactPerson || "Unknown",
+          contactNumber: data.contactNumber || "",
+          contactPerson: data.contactPerson || "",
           dateAdded: data.dateAdded || new Timestamp(0, 0),
           eventDate: data.eventDate || "",
-          eventName: data.eventName || "Unnamed Event",
-          location: data.location || "Unknown Location",
-          package: data.package || "No Package",
-          layout: data.layout || "No Layout",
+          eventName: data.eventName || "Unamed Event",
+          location: data.location || "",
+          package: data.package || "",
+          layout: data.layout || "",
           notes: data.notes || "",
           isArchive: data.isArchive || false,
         };
       });
-  
+
       // Resolve all events and filter archived ones
       const resolvedEvents = await Promise.all(eventPromises);
-      const filteredEvents = resolvedEvents.filter((event) => !event.isArchive);
-  
+
       // Update state variables
-      setEvents(filteredEvents);
-  
-      console.log(filteredEvents); // Debugging log for events
+      setEvents(resolvedEvents);
+
+      console.log(resolvedEvents); // Debugging log for events
     } catch (error) {
       console.error("Error fetching events:", error);
     }
   };
-  
+
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [trigger]);
 
   // Handle adding a new event
   const handleAddEvent = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-  
+
     // Creating the event data with only eventName and placeholders for other fields
     const newEvent = {
       eventName: newEventName || "Untitled Event",
@@ -129,18 +151,11 @@ export default function MissionControlPage() {
       dateAdded: Timestamp.now(),
       isArchive: false,
     };
-  
+
     try {
       // Add the new event to Firestore
       const docRef = await addDoc(collection(firestoreDB, "events"), newEvent);
-
-      // Get the ID of the newly created document
       const newEventId = docRef.id;
-
-      console.log("New Event ID:", newEventId);
-
-      // Redirect to the newly created event's page
-      router.push(`/dashboard/mission-control/${newEventId}`);
 
       // Add to realtimeDB
       const eventRef = ref(realtimeDB, `/dashboard/mission-control/${newEventId}`);
@@ -151,17 +166,13 @@ export default function MissionControlPage() {
         },
         messages: {},
       });
-  
-      // Fetch the updated events list (optional if you're updating state elsewhere)
+
+      // Redirect to the newly created event's page
+      router.push(`/dashboard/mission-control/${newEventId}`);
+
       fetchEvents();
-  
-      // Redirect to the events list or the event details page
-      router.push(`/events/${newEventId}`);
     } catch (error) {
       console.error("Error adding event:", error);
-    } finally {
-      // Close the dialog after adding the event
-      setIsDialogOpen(false);
     }
   };
 
@@ -171,6 +182,7 @@ export default function MissionControlPage() {
 
       <Card className="flex flex-col w-full h-full">
         <CardContent className="flex-1 flex p-6 gap-6 overflow-hidden">
+          {/* Event List */}
           <ScrollArea className="w-full max-h-[80vh] rounded-md border">
             <div className="p-4 space-y-4 ">
               {events.length > 0 ? (
@@ -183,6 +195,9 @@ export default function MissionControlPage() {
                     location={event.location || "Unknown Location"}
                     agents={event.agentNames || []}
                     status={randomStatus}
+                    role={session!.role}
+                    isArchive={event.isArchive}
+                    onUpdate={triggerUpdate}
                   />
                 ))
               ) : (
@@ -192,39 +207,41 @@ export default function MissionControlPage() {
           </ScrollArea>
         </CardContent>
 
-        <CardFooter className="flex-none flex justify-end">
-          {/* Trigger for opening the AlertDialog */}
-          <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <AlertDialogTrigger className="flex items-center p-2 bg-blue-500 text-white rounded-md">
-              <Plus className="mr-2" /> Add Event
-            </AlertDialogTrigger>
+        {/* Trigger for opening the AlertDialog (only for admin) */}
+        {isAdmin && (
+          <CardFooter className="flex-none flex justify-end">
+            <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <AlertDialogTrigger className="flex items-center p-2 bg-blue-500 text-white rounded-md">
+                <Plus className="mr-2" /> Add Event
+              </AlertDialogTrigger>
 
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Add New Event</AlertDialogTitle>
-              </AlertDialogHeader>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Add New Event</AlertDialogTitle>
+                </AlertDialogHeader>
 
-              {/* Event Form */}
-              <form onSubmit={handleAddEvent}>
-                <label className="block mb-4">Event Name</label>
-                <input
-                  type="text"
-                  value={newEventName}
-                  onChange={(e) => setNewEventName(e.target.value)}
-                  className="w-full p-2 border rounded-md mb-4"
-                  placeholder="Enter event name"
-                  required
-                />
-                <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction type="submit">Add</AlertDialogAction>
-                </AlertDialogFooter>
-              </form>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardFooter>
+                {/* Event Form */}
+                <form onSubmit={handleAddEvent}>
+                  <label className="block mb-4">Event Name</label>
+                  <input
+                    type="text"
+                    value={newEventName}
+                    onChange={(e) => setNewEventName(e.target.value)}
+                    className="w-full p-2 border rounded-md mb-4"
+                    placeholder="Enter event name"
+                    required
+                  />
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction type="submit">Add</AlertDialogAction>
+                  </AlertDialogFooter>
+                </form>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

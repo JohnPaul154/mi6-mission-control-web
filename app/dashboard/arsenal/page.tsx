@@ -58,6 +58,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+import { useSession } from "@/contexts/SessionContext";
 
 import { 
   Plus, 
@@ -67,16 +68,15 @@ import {
   Save
 } from 'lucide-react';
 
-
 export const EquipmentTable: React.FC<{ 
   equipment: ArsenalData[], 
   onDelete: (id: string, type: string) => void, 
   onEdit: (id: string, newName: string) => void 
-}> = ({ equipment, onDelete, onEdit }) => {
+  isAdmin: boolean,
+}> = ({ equipment, onDelete, onEdit, isAdmin }) => {
+
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState<string>("");
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const handleEditClick = (item: ArsenalData) => {
     setEditingItemId(item.id || "");
@@ -84,17 +84,14 @@ export const EquipmentTable: React.FC<{
   };
 
   const handleCancelClick = () => {
-    setIsCancelDialogOpen(false);
     setEditingItemId(null);
     setEditedName("");
   };
 
   const confirmCancel = () => {
-    setIsCancelDialogOpen(true);
   };
 
   const handleSaveClick = () => {
-    setIsSaveDialogOpen(false);
     if (editingItemId && editedName) {
       onEdit(editingItemId, editedName);
       setEditingItemId(null);
@@ -103,23 +100,20 @@ export const EquipmentTable: React.FC<{
   };
 
   const confirmSave = () => {
-    setIsSaveDialogOpen(true);
   };
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-2/12">ID</TableHead>
           <TableHead className="w-8/12">Equipment</TableHead>
-          <TableHead className="w-[50px] text-right">Actions</TableHead>
+          {isAdmin && <TableHead className="w-[50px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {equipment.map((item) => (
           <TableRow key={item.id || ""}>
-            <TableCell className="w-2/12">{item.id || ""}</TableCell>
-            <TableCell className="w-1/2">
+            <TableCell className="w-1/2 py-4">
               {editingItemId === item.id || "" ? (
                 <input
                   type="text"
@@ -131,86 +125,89 @@ export const EquipmentTable: React.FC<{
                 item.name
               )}
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end space-x-2">
-                {editingItemId === item.id || "" ? (
-                  <>
-                    <AlertDialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          className="p-2"
-                          onClick={confirmSave}
-                        >
-                          <Save className="w-5 h-5 text-white"/>
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Rename</AlertDialogTitle>
-                        </AlertDialogHeader>
-                        <p>Are you sure you want to rename to "{editedName}"?</p>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleSaveClick}>
-                            Save
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                    <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-                      <AlertDialogTrigger asChild>
-                        <button
-                          className="p-2"
-                          onClick={confirmCancel}
-                        >
-                          <X className="w-5 h-5 text-white" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Cancel</AlertDialogTitle>
-                        </AlertDialogHeader>
-                        <p>Are you sure you want to discard changes?</p>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleCancelClick}>
-                            Discard
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      className="p-2"
-                      onClick={() => handleEditClick(item)}
-                    >
-                      <Edit className="w-5 h-5 text-white"/>
-                    </button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className="p-2">
-                          <Trash2 className="w-5 h-5 text-red-500" />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                        </AlertDialogHeader>
-                        <p>Are you sure you want to delete "{item.name}"?</p>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDelete(item.id || "", item.type)}>
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                )}
-              </div>
-            </TableCell>
+            {/* Edit|Delete arsenal (for admin only) */}
+            {isAdmin && (
+              <TableCell className="text-right">
+                <div className="flex justify-end space-x-2">
+                  {editingItemId === item.id || "" ? (
+                    <>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="p-2"
+                            onClick={confirmSave}
+                          >
+                            <Save className="w-5 h-5 text-white"/>
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Rename</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <p>Are you sure you want to rename to "{editedName}"?</p>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleSaveClick}>
+                              Save
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="p-2"
+                            onClick={confirmCancel}
+                          >
+                            <X className="w-5 h-5 text-white" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Cancel</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <p>Are you sure you want to discard changes?</p>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleCancelClick}>
+                              Discard
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="p-2"
+                        onClick={() => handleEditClick(item)}
+                      >
+                        <Edit className="w-5 h-5 text-white"/>
+                      </button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className="p-2">
+                            <Trash2 className="w-5 h-5 text-red-500" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <p>Are you sure you want to delete "{item.name}"?</p>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(item.id || "", item.type)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
@@ -218,14 +215,19 @@ export const EquipmentTable: React.FC<{
   );
 };
 
-
-
 const ArsenalPage: React.FC = () => {
+
+  // Global parameters
+  const { session } = useSession();
+  const isAdmin = session!.role === "admin";
+
+  // Arsenal table states
   const [cameraEquipment, setCameraEquipment] = useState<ArsenalData[]>([]);
   const [laptopEquipment, setLaptopEquipment] = useState<ArsenalData[]>([]);
   const [printerEquipment, setPrinterEquipment] = useState<ArsenalData[]>([]);
-  const [selectedTab, setSelectedTab] = useState<string>('camera');  // Track selected tab
+  const [selectedTab, setSelectedTab] = useState<string>('camera'); 
 
+  // Fetch all equipments and filter them by type
   const fetchEquipments = async (
     type: string,
     setState: React.Dispatch<React.SetStateAction<ArsenalData[]>>
@@ -248,7 +250,6 @@ const ArsenalPage: React.FC = () => {
     }
   };
   
-
   useEffect(() => {
     fetchEquipments("camera", setCameraEquipment);
     fetchEquipments("laptop", setLaptopEquipment);
@@ -285,7 +286,6 @@ const ArsenalPage: React.FC = () => {
 
       var type = selectedTab
 
-      // Refresh the equipment list after updating
       fetchEquipments(
         type,
         type === "camera"
@@ -304,7 +304,6 @@ const ArsenalPage: React.FC = () => {
       await deleteDoc(doc(firestoreDB, "arsenal", id));
       console.log("Document deleted with ID: ", id);
 
-      // Refresh the equipment list after deleting
       fetchEquipments(type, 
         type === "camera" 
         ? setCameraEquipment 
@@ -325,69 +324,76 @@ const ArsenalPage: React.FC = () => {
         <CardContent className="flex-1 flex flex-col flex-1 p-6 overflow-hidden">
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="grid w-full">
             <div className='flex'>
+              
+              {/* Type Selector */}
               <TabsList className="flex-1 grid grid-cols-3">
                 <TabsTrigger value="camera">Camera</TabsTrigger>
                 <TabsTrigger value="laptop">Laptop</TabsTrigger>
                 <TabsTrigger value="printer">Printer</TabsTrigger>
               </TabsList>
-              <AlertDialog>
-                <AlertDialogTrigger className="flex items-center p-2 bg-blue-500 text-white rounded-md ml-6">
-                  <Plus className="w-5 h-5" />
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Add Arsenal</AlertDialogTitle>
-                  </AlertDialogHeader>
-                  <form
-                    onSubmit={(e: FormEvent<HTMLFormElement>) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.currentTarget);
-                      const arsenalType = formData.get("arsenalType") as string;
-                      const arsenalName = formData.get("arsenalName") as string;
-                      handleAddArsenal(arsenalName, arsenalType);
-                    }}
-                  >
-                    <Label htmlFor="arsenalName" className="block mb-4">Name</Label>
-                    <input
-                      type="text"
-                      name="arsenalName"
-                      id="arsenalName"
-                      className="w-full p-2 border rounded-md mb-4"
-                      placeholder="Enter arsenal name"
-                      required
-                    />
-                    <Label className="block mb-4">Type</Label>
-                    <RadioGroup name="arsenalType" defaultValue={selectedTab} className="mb-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="camera" id="camera" />
-                        <Label htmlFor="camera">Camera</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="laptop" id="laptop" />
-                        <Label htmlFor="laptop">Laptop</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="printer" id="printer" />
-                        <Label htmlFor="printer">Printer</Label>
-                      </div>
-                    </RadioGroup>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction type="submit">Add</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </form>
-                </AlertDialogContent>
-              </AlertDialog>
+
+              {/* Add equipment (for admin only) */}
+              {isAdmin && (
+                <AlertDialog>
+                  <AlertDialogTrigger className="flex items-center p-2 bg-zinc-500 rounded-lg ml-6">
+                    <Plus className="w-5 h-5" />
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Add Arsenal</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <form
+                      onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const arsenalType = formData.get("arsenalType") as string;
+                        const arsenalName = formData.get("arsenalName") as string;
+                        handleAddArsenal(arsenalName, arsenalType);
+                      }}
+                    >
+                      <Label htmlFor="arsenalName" className="block mb-4">Name</Label>
+                      <input
+                        type="text"
+                        name="arsenalName"
+                        id="arsenalName"
+                        className="w-full p-2 border rounded-md mb-4"
+                        placeholder="Enter arsenal name"
+                        required
+                      />
+                      <Label className="block mb-4">Type</Label>
+                      <RadioGroup name="arsenalType" defaultValue={selectedTab} className="mb-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="camera" id="camera" />
+                          <Label htmlFor="camera">Camera</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="laptop" id="laptop" />
+                          <Label htmlFor="laptop">Laptop</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="printer" id="printer" />
+                          <Label htmlFor="printer">Printer</Label>
+                        </div>
+                      </RadioGroup>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction type="submit">Add</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </form>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
 
+            {/* Tables */}
             <TabsContent value="camera">
-              <EquipmentTable equipment={cameraEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} />
+              <EquipmentTable equipment={cameraEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
             </TabsContent>
             <TabsContent value="laptop">
-             <EquipmentTable equipment={laptopEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} />
+             <EquipmentTable equipment={laptopEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
             </TabsContent>
             <TabsContent value="printer">
-              <EquipmentTable equipment={printerEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} />
+              <EquipmentTable equipment={printerEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
             </TabsContent>
           </Tabs>
         </CardContent>
