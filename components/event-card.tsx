@@ -25,12 +25,12 @@ import {
 
 // EventCard Props, including both date and time and a unique id
 interface EventCardProps {
-  id: string; // Unique identifier for the event
-  date: string; // Date of the event
+  id: string; 
+  date: string; 
   eventName: string;
   location: string;
-  agents: string[]; // List of agent names
-  status: "good" | "alert" | "critical"; // Status with three levels
+  agents: string[];
+  status: string; 
 }
 
 export function EventCard({
@@ -45,21 +45,17 @@ export function EventCard({
   const router = useRouter(); // useRouter hook for navigation
 
   // Define the status text and background color styles
-  let statusText = "Status";
   let statusBgClass = "";
 
   switch (status) {
     case "good":
       statusBgClass = "bg-green-500";
-      statusText = "Good";
       break;
     case "alert":
       statusBgClass = "bg-yellow-500";
-      statusText = "Alert";
       break;
     case "critical":
       statusBgClass = "bg-red-500";
-      statusText = "Critical";
       break;
   }
 
@@ -70,7 +66,7 @@ export function EventCard({
 
   // Handle Archive button click (show the dialog)
   const handleArchiveClick = () => {
-    setIsDialogOpen(true);
+    //
   };
 
   // Handle archiving the event (just a placeholder function for now)
@@ -123,7 +119,7 @@ export function EventCard({
           <div
             className={`flex items-center justify-center flex-none w-1/6 py-2 text-white font-medium rounded-md ${statusBgClass}`}
           >
-            {statusText}
+            Status
           </div>
       </div>
       </CardContent>

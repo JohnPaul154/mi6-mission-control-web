@@ -210,16 +210,22 @@ export default function EventChatPage() {
               <div className=" w-full p-4 mb-4 rounded-md shadow-sm">
                 <h3 className="text-lg font-semibold">Camera</h3>
                 {event?.arsenalNames && event.arsenalNames.length > 0 ? (
-                  event?.arsenalNames
-                    .filter((item) => item.includes("@camera")) // Filter arsenal items by type "camera"
-                    .map((cameraItem, index) => {
-                      const [name] = cameraItem.split("@"); // Extract the name before "@camera"
-                      return (
-                        <p key={index} className="text-sm mt-2">
-                          {name}
-                        </p>
-                      );
-                    })
+                  (() => {
+                    const filteredItems = event.arsenalNames.filter((item) => item.includes("@camera")); // Filter arsenal items by type "printer"
+
+                    return filteredItems.length > 0 ? (
+                      filteredItems.map((cameraItem, index) => {
+                        const [name] = cameraItem.split("@"); // Extract the name before "@printer"
+                        return (
+                          <p key={index} className="text-sm mt-2">
+                            {name}
+                          </p>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm mt-2">No assigned</p>
+                    );
+                  })()
                 ) : (
                   <p className="text-sm mt-2">No assigned</p>
                 )}
@@ -228,16 +234,22 @@ export default function EventChatPage() {
               <div className="w-full p-4 mb-4 rounded-md shadow-sm">
                 <h3 className="text-lg font-semibold">Laptop</h3>
                 {event?.arsenalNames && event.arsenalNames.length > 0 ? (
-                  event?.arsenalNames
-                    .filter((item) => item.includes("@laptop")) // Filter arsenal items by type "camera"
-                    .map((laptopItem, index) => {
-                      const [name] = laptopItem.split("@"); // Extract the name before "@camera"
-                      return (
-                        <p key={index} className="text-sm mt-2">
-                          {name}
-                        </p>
-                      );
-                    })
+                  (() => {
+                    const filteredItems = event.arsenalNames.filter((item) => item.includes("@laptop")); // Filter arsenal items by type "printer"
+
+                    return filteredItems.length > 0 ? (
+                      filteredItems.map((laptopItem, index) => {
+                        const [name] = laptopItem.split("@"); // Extract the name before "@printer"
+                        return (
+                          <p key={index} className="text-sm mt-2">
+                            {name}
+                          </p>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm mt-2">No assigned</p>
+                    );
+                  })()
                 ) : (
                   <p className="text-sm mt-2">No assigned</p>
                 )}
@@ -246,16 +258,22 @@ export default function EventChatPage() {
               <div className=" w-full p-4 mb-4 rounded-md shadow-sm">
                 <h3 className="text-lg font-semibold">Printer</h3>
                 {event?.arsenalNames && event.arsenalNames.length > 0 ? (
-                  event?.arsenalNames
-                    .filter((item) => item.includes("@printer")) // Filter arsenal items by type "camera"
-                    .map((cameraItem, index) => {
-                      const [name] = cameraItem.split("@"); // Extract the name before "@camera"
-                      return (
-                        <p key={index} className="text-sm mt-2">
-                          {name}
-                        </p>
-                      );
-                    })
+                  (() => {
+                    const filteredItems = event.arsenalNames.filter((item) => item.includes("@printer")); // Filter arsenal items by type "printer"
+
+                    return filteredItems.length > 0 ? (
+                      filteredItems.map((printerItem, index) => {
+                        const [name] = printerItem.split("@"); // Extract the name before "@printer"
+                        return (
+                          <p key={index} className="text-sm mt-2">
+                            {name}
+                          </p>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm mt-2">No assigned</p>
+                    );
+                  })()
                 ) : (
                   <p className="text-sm mt-2">No assigned</p>
                 )}

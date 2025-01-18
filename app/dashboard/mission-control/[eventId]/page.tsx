@@ -138,13 +138,13 @@ export default function EventPage() {
         const docRef = doc(firestoreDB, "events", event.id);
         await updateDoc(docRef, {
           eventName: event.eventName,
-          location: event.location,
-          layout: event.layout,
-          package: event.package,
-          contactPerson: event.contactPerson,
-          contactNumber: event.contactNumber,
-          eventDate: event.eventDate,
-          notes: event.notes,
+          location: event.location || "",
+          layout: event.layout || "",
+          package: event.package || "",
+          contactPerson: event.contactPerson || "",
+          contactNumber: event.contactNumber || "",
+          eventDate: event.eventDate || "",
+          notes: event.notes || "",
         });
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
@@ -436,9 +436,9 @@ export default function EventPage() {
                       value={event.package}
                       onChange={(e) => handleInputChange(e, 'package')}
                     >
-                      <option value="Package 1">Agent Package</option>
-                      <option value="Package 2">Director Package</option>
-                      <option value="Package 3">Governor's Package</option>
+                      <option value="Agent Package">Agent Package</option>
+                      <option value="Director Package">Director Package</option>
+                      <option value="Governor's Package">Governor's Package</option>
                     </select>
                   ) : (
                     <input

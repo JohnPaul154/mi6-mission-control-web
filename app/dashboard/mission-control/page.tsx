@@ -117,17 +117,17 @@ export default function MissionControlPage() {
   
     // Creating the event data with only eventName and placeholders for other fields
     const newEvent = {
-      eventName: newEventName || "Untitled Event", // Use input or a default value
-      location: "Unknown Location", // Placeholder
-      agents: [], // Empty array for agents
-      arsenal: [], // Empty array for arsenal
-      contactNumber: "N/A", // Placeholder
-      contactPerson: "N/A", // Placeholder
-      package: "N/A", // Placeholder
-      callTime: Timestamp.now(), // Default to now
-      eventDate: "", // Placeholder event date
-      dateAdded: "", // Current timestamp
-      isArchive: false, // Default isArchive value
+      eventName: newEventName || "Untitled Event",
+      location: "",
+      agents: [],
+      arsenal: [],
+      contactNumber: "",
+      contactPerson: "",
+      package: "",
+      layout: "",
+      eventDate: "",
+      dateAdded: Timestamp.now(),
+      isArchive: false,
     };
   
     try {
@@ -150,7 +150,6 @@ export default function MissionControlPage() {
           createdAt: Timestamp.now(),
         },
         messages: {},
-        participants: {},
       });
   
       // Fetch the updated events list (optional if you're updating state elsewhere)
@@ -179,7 +178,7 @@ export default function MissionControlPage() {
                   <EventCard
                     key={event.id}
                     id={event.id || ""}
-                    date={""}
+                    date={event.eventDate}
                     eventName={event.eventName}
                     location={event.location || "Unknown Location"}
                     agents={event.agentNames || []}
