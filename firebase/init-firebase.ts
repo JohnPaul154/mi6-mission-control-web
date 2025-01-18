@@ -1,6 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
+
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -8,6 +10,7 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: "AIzaSyBpKaBLVQwvrc8-1ZVHMAl5ikJGaZ4S7bU",
   authDomain: "mi6-mission-control.firebaseapp.com",
+  databaseURL: "https://mi6-mission-control-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "mi6-mission-control",
   storageBucket: "mi6-mission-control.firebasestorage.app",
   messagingSenderId: "454544835991",
@@ -18,3 +21,4 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const firestoreDB = getFirestore(app);
+export const realtimeDB = getDatabase(app);

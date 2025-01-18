@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Open_Sans } from 'next/font/google';
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { SessionProvider } from "@/context/SessionContext";
+import { SessionProvider } from "@/contexts/SessionContext";
 import "./globals.css";
 
 const openSans = Open_Sans({

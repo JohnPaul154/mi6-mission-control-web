@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useSession } from "@/context/SessionContext";
+import { useSession } from "@/contexts/SessionContext";
 import { firestoreDB } from '@/firebase/init-firebase';
 import { doc, getDoc } from "firebase/firestore";
 
@@ -35,7 +35,7 @@ import { ProfileCard } from "@/components/profile-card";
 const main = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Mission Control", url: "/dashboard/mission-control", icon: GlobeLock },
-  { title: "Mi6: Chat Room", url: "/dashboard/chat-room", icon: MessagesSquare },
+  { title: "Mi6: Chat Room", url: "/dashboard/mi6-chat-room", icon: MessagesSquare },
   { title: "Agents List", url: "/dashboard/agent-list", icon: Users },
   { title: "Aresenal", url: "/dashboard/arsenal", icon: Camera },
   { title: "Archive", url: "/dashboard/archive", icon: Archive },

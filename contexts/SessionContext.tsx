@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
 // Define the type of the session data
-interface SessionData {
+export interface SessionData {
   id: string;
   email: string;
   role: string;

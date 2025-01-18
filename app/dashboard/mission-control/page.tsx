@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventCard } from "@/components/event-card";
 import { Plus } from "lucide-react";
 import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference } from "firebase/firestore";
-import { firestoreDB } from "@/firebase/init-firebase";
+import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types"; 
 import {
   AlertDialog,
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"; // Import AlertDialog components
-import { stringify } from "querystring";
+import { set, ref } from "firebase/database";
 
 export default function MissionControlPage() {
   const router = useRouter();
@@ -80,7 +80,6 @@ export default function MissionControlPage() {
           arsenalNames,
           agents: data.agents || [],
           arsenal: data.arsenal || [],
-          callTime: data.callTime || new Timestamp(0, 0), // Replace with valid default
           contactNumber: data.contactNumber || "N/A",
           contactPerson: data.contactPerson || "Unknown",
           dateAdded: data.dateAdded || new Timestamp(0, 0),
@@ -127,7 +126,7 @@ export default function MissionControlPage() {
       package: "N/A", // Placeholder
       callTime: Timestamp.now(), // Default to now
       eventDate: "", // Placeholder event date
-      dateAdded: Timestamp.now(), // Current timestamp
+      dateAdded: "", // Current timestamp
       isArchive: false, // Default isArchive value
     };
   
@@ -142,6 +141,17 @@ export default function MissionControlPage() {
 
       // Redirect to the newly created event's page
       router.push(`/dashboard/mission-control/${newEventId}`);
+
+      // Add to realtimeDB
+      const eventRef = ref(realtimeDB, `/dashboard/mission-control/${newEventId}`);
+      await set(eventRef, {
+        info: {
+          name: newEvent.eventName,
+          createdAt: Timestamp.now(),
+        },
+        messages: {},
+        participants: {},
+      });
   
       // Fetch the updated events list (optional if you're updating state elsewhere)
       fetchEvents();

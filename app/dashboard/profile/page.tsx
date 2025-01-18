@@ -1,24 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from "react";
-import { useSession } from "@/context/SessionContext";  // Assuming you have a session context
-import { firestoreDB } from '@/firebase/init-firebase';  // Firebase import
+import { useSession } from "@/contexts/SessionContext"; 
+import { firestoreDB } from '@/firebase/init-firebase';  
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import {
   Card,
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-
-// Define the shape of session data, assuming it has `id`, `firstName`, `lastName`, `position`, `avatar`, and `email`
-interface Session {
-  id: string;
-  firstName: string;
-  lastName: string;
-  position: string;
-  avatar: string;
-  email: string; // Adding email field
-}
 
 export default function ProfilePage() {
   const { session } = useSession(); // Assuming your session context provides the session

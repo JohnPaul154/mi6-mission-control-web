@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation";
-import { useSession } from "@/context/SessionContext";
+import { useSession } from "@/contexts/SessionContext";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -29,6 +29,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {children}
       </main>
     </SidebarProvider>
-    
   );
 }

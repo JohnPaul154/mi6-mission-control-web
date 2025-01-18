@@ -6,7 +6,6 @@ export interface EventData {
   agentNames?: string[];
   arsenal: DocumentReference[];
   arsenalNames?: string[];
-  callTime: Timestamp; 
   contactNumber: string;
   contactPerson: string; 
   dateAdded: Timestamp;

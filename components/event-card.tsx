@@ -81,7 +81,7 @@ export function EventCard({
 
   const handleEventClick = (id: string) => {
       // Navigate to the event details page
-      router.push(`/dashboard/chat-room/`);
+      router.push(`/dashboard/chat/${id}`);
     };
 
   return (
@@ -99,11 +99,12 @@ export function EventCard({
 
           {/* Event Info Partition */}
           <div className="flex-1 flex flex-col">
-            <p className="text-lg font-bold">{eventName}</p>
-            <p className="text-sm text-gray-500">{location}</p>
+            <p className="text-lg font-bold">Event: {eventName}</p>
+            <p className="text-sm text-gray-500">Location: {location}</p>
 
             {/* Agents List */}
             <div className="flex gap-2 mt-2 flex-wrap">
+              Team: 
               {agents.length > 0 ? (
                 agents.map((agent, index) => (
                   <Badge key={index} className="bg-zinc-200 py-1 px-2 rounded-md">

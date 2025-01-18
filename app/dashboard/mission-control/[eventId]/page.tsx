@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from 'next/navigation';
 import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
-import { firestoreDB } from "@/firebase/init-firebase";
+import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
+import { set, ref, remove } from "firebase/database";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +46,6 @@ export default function EventPage() {
   const [availablePrinter, setAvailablePrinter] = useState<ArsenalData[]>([]);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedArsenal, setSelectedArsenal] = useState<ArsenalData | null>(null);
-
 
   // Function that loads everytime you get to this screen
   useEffect(() => {

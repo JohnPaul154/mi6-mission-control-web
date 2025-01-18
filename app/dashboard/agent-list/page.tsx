@@ -12,8 +12,9 @@ import { ProfileCard } from "@/components/profile-card";
 import { Plus, Trash2 } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
-import { getDocs, collection, getDoc, doc, addDoc, query, where } from "firebase/firestore";
-import { firestoreDB } from "@/firebase/init-firebase"; // Make sure to import your firestore instance
+import { getDocs, collection, getDoc, doc, addDoc, query, where} from "firebase/firestore";
+import {  ref, set } from "firebase/database";
+import { firestoreDB, realtimeDB } from "@/firebase/init-firebase"; // Make sure to import your firestore instance
 import { AgentData } from "@/firebase/collection-types";
 
 type Profile = {
@@ -35,16 +36,17 @@ const generatePassword = (length: number = 8) => {
 
 export default function AgentListPage() {
   const [profiles, setProfiles] = useState<AgentData[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null); // New state for selected agent
+  const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
+  const [shouldRefetch, setShouldRefetch] = useState(false);
 
   const fetchAgents = async () => {
     try {
       const querySnapshot = await getDocs(collection(firestoreDB, "agents"));
       const agentData: AgentData[] = [];
-  
+
       for (const docSnapshot of querySnapshot.docs) {
         const data = docSnapshot.data() as AgentData;
-  
+
         // Push the agent data
         agentData.push({
           id: docSnapshot.id, // Add the document ID to each agent's data
@@ -59,7 +61,7 @@ export default function AgentListPage() {
           role: data.role || "Unknown Role",
         });
       }
-  
+
       setProfiles(agentData)
     } catch (error) {
       console.error("Error fetching agents:", error);
@@ -83,7 +85,7 @@ export default function AgentListPage() {
 
   useEffect(() => {
     fetchAgents();
-  }, []);
+  }, [shouldRefetch]);
 
   // Add state for new agent details
   const [firstName, setFirstName] = useState("");
@@ -120,15 +122,15 @@ export default function AgentListPage() {
       // Step 1: Check if the email already exists in Firestore
       const agentsRef = collection(firestoreDB, "agents");
       const q = query(agentsRef, where("email", "==", email));
-  
+
       const querySnapshot = await getDocs(q);
-      
+
       // Step 2: If email exists, alert the user
       if (!querySnapshot.empty) {
         alert("An agent with this email already exists!");
         return;
       }
-  
+
       // Step 3: Create the new agent object
       const newAgent: AgentData = {
         avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp", // Default avatar URL if missing
@@ -141,16 +143,26 @@ export default function AgentListPage() {
         position: "Unknown", // Default position
         role: "agent", // Default role
       };
-  
+
       // Step 4: Add the new agent to Firestore
-      await addDoc(collection(firestoreDB, "agents"), newAgent);
-      
+      const newUser = await addDoc(collection(firestoreDB, "agents"), newAgent);
+
+      // Add to realtimeDB
+      const agentStatusRef = ref(realtimeDB, `agents/${newUser.id}`);
+      await set(agentStatusRef, {
+        status: "offline", // Default status
+        lastSeen: null,  // No activity yet
+        name: `${newAgent.firstName} ${newAgent.lastName}`, // Full name
+        email: newAgent.email,
+        avatar: newAgent.avatar
+      });
+
       // Step 5: Reset form fields after adding the agent
       setFirstName("");
       setLastName("");
       setEmail("");
       setIsDialogOpen(false); // Close the dialog after adding
-  
+      setShouldRefetch(prev => !prev);
     } catch (error) {
       console.error("Error adding agent:", error);
     }
@@ -251,9 +263,9 @@ export default function AgentListPage() {
                         Cancel
                       </AlertDialogCancel>
                       <AlertDialogAction type="submit" onClick={(e) => {
-                          e.preventDefault(); // Prevent form submission
-                          handleAddAgent(); // Call your handler function
-                        }}>
+                        e.preventDefault(); // Prevent form submission
+                        handleAddAgent(); // Call your handler function
+                      }}>
                         Add Agent
                       </AlertDialogAction>
                     </AlertDialogFooter>
