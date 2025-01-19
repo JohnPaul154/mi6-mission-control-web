@@ -5,20 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventCard } from "@/components/event-card";
-import { Plus } from "lucide-react";
 import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference, query, where } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"; // Import AlertDialog components
 import { set, ref } from "firebase/database";
 import { useSession } from "@/contexts/SessionContext";
 

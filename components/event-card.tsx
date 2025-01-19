@@ -121,7 +121,7 @@ export function EventCard({
 
   return (
     <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md">
-      <CardContent className="w-full pb-0">
+      <CardContent className="w-full p-0">
         <div
           key={id}
           onClick={() => handleEventClick(id || "")}
@@ -129,7 +129,7 @@ export function EventCard({
         >
           {/* Date Partition */}
           <div className="flex-none min-w-32 items-center flex justify-center">
-            <div>{date}</div>
+            <div>{date || "No Date"}</div>
           </div>
 
           {/* Event Info Partition */}

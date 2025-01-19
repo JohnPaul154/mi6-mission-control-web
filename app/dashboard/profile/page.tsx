@@ -1,142 +1,142 @@
-'use client'
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { useSession } from "@/contexts/SessionContext"; 
-import { firestoreDB } from '@/firebase/init-firebase';  
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import React, { useState, useEffect } from 'react';
+import { useSession } from '@/contexts/SessionContext';
+import { firestoreDB } from '@/firebase/init-firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { AgentData } from '@/firebase/collection-types'; // Assuming this is where AgentData is defined
+import { CircleHelp } from 'lucide-react';
 import {
-  Card,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 export default function ProfilePage() {
-  const { session } = useSession(); // Assuming your session context provides the session
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [position, setPosition] = useState("");
-  const [password, setPassword] = useState(""); // Handle password appropriately
-  const [avatar, setavatar] = useState(""); // Keep avatar as a string, initially empty
-  const [email, setEmail] = useState(""); // Email field (not editable)
+  const { session } = useSession();
+
+  // State to manage the agent's data
+  const [profile, setProfile] = useState<AgentData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMismatch, setPasswordMismatch] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
-
       if (!session?.id) return;
 
       try {
-        // Fetch the user profile from Firestore using the user's ID
-        const userDocRef = doc(firestoreDB, "agents", session.id);
-        const agent = await getDoc(userDocRef);
+        const userDocRef = doc(firestoreDB, 'agents', session.id);
+        const agentSnapshot = await getDoc(userDocRef);
 
-        console.log(agent)
-
-        if (agent.exists()) {
-          console.log(agent)
-          const userData = agent.data();
-          setFirstName(userData.firstName);
-          setLastName(userData.lastName);
-          setPosition(userData.position);
-          // Set avatar to either user data or default to Gravatar if it's an empty string
-          setavatar(userData.avatar || ""); // If avatar is empty, it will fallback
-          setEmail(userData.email); // Email from Firestore
+        if (agentSnapshot.exists()) {
+          const userData = agentSnapshot.data() as AgentData;
+          setProfile(userData);
         } else {
-          console.log("No user found!");
+          console.error('No user found!');
         }
       } catch (error) {
-        console.error("Error fetching user profile:", error);
+        console.error('Error fetching user profile:', error);
       }
     };
 
     fetchUserProfile();
   }, [session]);
 
-  // Handle profile picture change
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    field: keyof AgentData
+  ) => {
+    if (profile) {
+      setProfile({
+        ...profile,
+        [field]: e.target.value,
+      });
+    }
+  };
+
   const handleavatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setavatar(reader.result as string);
+        if (profile) {
+          setProfile({ ...profile, avatar: reader.result as string });
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Handle save changes
   const handleSaveChanges = async () => {
     if (password !== confirmPassword) {
       setPasswordMismatch(true);
       return;
     }
+
     setPasswordMismatch(false);
     setIsEditing(false);
 
-    if (!session?.id) {
-      console.error("Session not found. Cannot update profile.");
-      return; // Stop execution if session is not available
-    }
-  
-    if (password !== confirmPassword) {
-      setPasswordMismatch(true);
+    if (!session?.id || !profile) {
+      console.error('Session or profile data not found. Cannot update profile.');
       return;
     }
 
-    setPasswordMismatch(false);
-    setIsEditing(false);
-
-    setPassword("");
-    setConfirmPassword("");
-  
-    // Update Firebase with new profile information
     try {
-      const userDocRef = doc(firestoreDB, "agents", session.id); // Use the UID from the session to identify the user document
+      const userDocRef = doc(firestoreDB, 'agents', session.id);
+      const updateData: Partial<AgentData> = { ...profile };
 
-      const updateData: { [key: string]: any } = {
-        firstName,
-        lastName,
-        position,
-        avatar,
-      };
-
-      // Only include the password if it's not empty
       if (password) {
         updateData.password = password;
       }
 
       await updateDoc(userDocRef, updateData);
+
+      // Clear password fields
+      setPassword('');
+      setConfirmPassword('');
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error('Error updating profile:', error);
     }
   };
 
   return (
     <div className="min-full h-full w-full flex p-4 flex-1 flex-col">
-      <h1 className="text-3xl font-semibold mb-4 ml-4">{isEditing ? "Profile / Edit" : "Profile"}</h1>
+      <h1 className="text-3xl font-semibold mb-4 ml-4">
+        {isEditing ? 'Profile / Edit' : 'Profile'}
+      </h1>
 
       <Card className="w-full h-full flex flex-col">
         <CardContent className="flex flex-col flex-1 p-6">
           {/* Avatar (Profile Picture) */}
           <div className="mb-6 flex flex-col">
-            <div 
+            <div
               onClick={() => {
-                const fileInput = document.getElementById("avatarInput") as HTMLInputElement | null;
+                const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
                 if (fileInput) {
                   fileInput.click();
                 }
-              }} 
+              }}
               className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
             >
               <img
-                src={avatar === "" ? "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp" : avatar}  // Default to Gravatar if empty string
+                src={
+                  profile?.avatar === ''
+                    ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
+                    : profile?.avatar
+                }
                 alt="Profile"
                 className="w-full h-full object-cover"
               />
             </div>
-
             <input
               type="file"
               id="avatarInput"
@@ -146,58 +146,33 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* First Name */}
-          <div className="mb-4 w-full max-w-xs">
-            <label className="block mb-2">First Name</label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              disabled={!isEditing}
-              className="w-full p-2 border rounded-md"
-            />
-          </div>
-
-          {/* Last Name */}
-          <div className="mb-4 w-full max-w-xs">
-            <label className="block mb-2">Last Name</label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              disabled={!isEditing}
-              className="w-full p-2 border rounded-md"
-            />
-          </div>
-
-          {/* Email (not editable) */}
-          <div className="mb-4 w-full max-w-xs">
-            <label className="block mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              disabled={true}
-              className="w-full p-2 border rounded-md "
-            />
-          </div>
-
-          {/* Position */}
-          <div className="mb-4 w-full max-w-xs">
-            <label className="block mb-2">Position</label>
-            <input
-              type="text"
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              disabled={true}
-              className="w-full p-2 border rounded-md"
-            />
-          </div>
+          {/* Profile Fields */}
+          {['firstName', 'lastName', 'position', 'role', 'email'].map((field) => (
+            <div key={field} className="mb-4 w-full max-w-xs">
+              <label className="block mb-2 capitalize">{field}</label>
+              <input
+                type="text"
+                value={profile ? (profile[field as keyof AgentData] as string) : ''}
+                onChange={(e) => handleInputChange(e, field as keyof AgentData)}
+                disabled={!isEditing || ['email', 'role', 'position'].includes(field)}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+          ))}
 
           {/* Password */}
           {isEditing && (
-            <>
+            <div>
               <div className="mb-4 w-full max-w-xs">
-                <label className="block mb-2">Password</label>
+
+                <div className='flex relative group'>
+                  <label className="block mb-2 mr-2">Password </label>
+                  <CircleHelp className='w-5 h-6 ' />
+                  <div className="hidden group-hover:block bg-gray-200 text-zinc-700 text-xs rounded-md p-2 ml-2 mb-4 flex flex-row">
+                    Put new password if you want to replace your current password, leave it empty if not.
+                  </div>
+                </div>
+
                 <input
                   type="password"
                   value={password}
@@ -218,22 +193,28 @@ export default function ProfilePage() {
                   <p className="text-red-500 text-sm">Passwords do not match!</p>
                 )}
               </div>
-            </>
+            </div>
           )}
         </CardContent>
         <CardFooter>
           {isEditing ? (
-            <button
-              onClick={handleSaveChanges}
-              className="p-2 bg-red-500 text-white rounded-md"
-            >
-              Save Changes
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger className="p-2 bg-red-500 text-white rounded-md">
+                  Save Changes
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Edit Profile</AlertDialogTitle>
+                </AlertDialogHeader>
+                  Are you sure you want to save these changes?
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : (
-            <button
-              onClick={() => setIsEditing(true)} // Switch to edit mode
-              className="p-2 bg-zinc-500 text-white rounded-md"
-            >
+            <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
               Edit Profile
             </button>
           )}
