@@ -33,7 +33,7 @@ export default function MissionControlPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false); // State for the AlertDialog visibility
   const [newEventName, setNewEventName] = useState("");
 
-  const [trigger, setTrigger] = useState(false); // Example state to trigger an effect
+  const [trigger, setTrigger] = useState(false);
 
   const triggerUpdate = () => {
     setTrigger((prev) => !prev); // Toggle the state to trigger parent logic
@@ -158,7 +158,7 @@ export default function MissionControlPage() {
       const newEventId = docRef.id;
 
       // Add to realtimeDB
-      const eventRef = ref(realtimeDB, `/dashboard/mission-control/${newEventId}`);
+      const eventRef = ref(realtimeDB, `/chats/${newEventId}`);
       await set(eventRef, {
         info: {
           name: newEvent.eventName,
@@ -178,9 +178,9 @@ export default function MissionControlPage() {
 
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">
-      <h1 className="text-3xl font-semibold mb-4 ml-4">Mission Control</h1>
+      <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Mission Control</h1>
 
-      <Card className="flex flex-col w-full h-full">
+      <Card className="flex flex-col w-full h-full max-h-[96%]">
         <CardContent className="flex-1 flex p-6 gap-6 overflow-hidden">
           {/* Event List */}
           <ScrollArea className="w-full max-h-[80vh] rounded-md border">
@@ -211,8 +211,8 @@ export default function MissionControlPage() {
         {isAdmin && (
           <CardFooter className="flex-none flex justify-end">
             <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <AlertDialogTrigger className="flex items-center p-2 bg-blue-500 text-white rounded-md">
-                <Plus className="mr-2" /> Add Event
+              <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                <Plus className="w-4 h-4" />Add Event
               </AlertDialogTrigger>
 
               <AlertDialogContent>

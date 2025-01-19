@@ -83,10 +83,9 @@ export function AppSidebar() {
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
         <ProfileCard 
-          imageSrc={profile.profilePic} 
+          avatar={profile.profilePic} 
           name={profile.name} 
-          position={profile.position} 
-          status={true} 
+          position={profile.position}
         />
       </SidebarHeader>
 

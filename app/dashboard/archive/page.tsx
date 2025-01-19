@@ -14,13 +14,11 @@ import { useSession } from "@/contexts/SessionContext";
 export default function ArchivePage() {
 
   // Global parameters
-  const router = useRouter();
   const { session } = useSession()
   const isAdmin = session!.role === "admin";
 
   // Event states
   const [events, setEvents] = useState<EventData[]>([]);
-  const [newEventName, setNewEventName] = useState("");
   const [trigger, setTrigger] = useState(false);
 
   // Trigger when event cards do an action
@@ -119,49 +117,6 @@ export default function ArchivePage() {
   useEffect(() => {
     fetchEvents();
   }, [trigger]);
-
-  // Handle adding a new event
-  const handleAddEvent = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    // Creating the event data with only eventName and placeholders for other fields
-    const newEvent = {
-      eventName: newEventName || "Untitled Event",
-      location: "",
-      agents: [],
-      arsenal: [],
-      contactNumber: "",
-      contactPerson: "",
-      package: "",
-      layout: "",
-      eventDate: "",
-      dateAdded: Timestamp.now(),
-      isArchive: false,
-    };
-
-    try {
-      // Add the new event to Firestore
-      const docRef = await addDoc(collection(firestoreDB, "events"), newEvent);
-      const newEventId = docRef.id;
-
-      // Add to realtimeDB
-      const eventRef = ref(realtimeDB, `/dashboard/mission-control/${newEventId}`);
-      await set(eventRef, {
-        info: {
-          name: newEvent.eventName,
-          createdAt: Timestamp.now(),
-        },
-        messages: {},
-      });
-
-      // Redirect to the newly created event's page
-      router.push(`/dashboard/mission-control/${newEventId}`);
-
-      fetchEvents();
-    } catch (error) {
-      console.error("Error adding event:", error);
-    }
-  };
 
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">

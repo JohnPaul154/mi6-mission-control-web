@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { Edit, Archive, Trash, ArchiveRestore } from "lucide-react";
@@ -23,8 +23,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-import { firestoreDB } from "@/firebase/init-firebase";
+import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { remove, ref, onValue } from "firebase/database";
 
 interface EventCardProps {
   id: string;
@@ -44,7 +45,6 @@ export function EventCard({
   eventName,
   location,
   agents,
-  status,
   role,
   isArchive,
   onUpdate,
@@ -55,18 +55,37 @@ export function EventCard({
   const isAdmin = role === "admin";
   let statusBgClass = "";
 
+  const[status, setStatus] = useState("");
+
   // Switch for status
   switch (status) {
     case "good":
       statusBgClass = "bg-green-500";
       break;
     case "alert":
-      statusBgClass = "bg-yellow-500";
+      statusBgClass = "bg-orange-500";
       break;
     case "critical":
       statusBgClass = "bg-red-500";
       break;
   }
+
+  // Fetch status realtime
+  useEffect(() => {
+    const statusRef = ref(realtimeDB, `chats/${id}/info/status`);
+
+    // Listen for changes
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      const value = snapshot.val();
+      if (value) {
+        setStatus(value);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Button Handlers
   const handleEditClick = () => {
@@ -104,9 +123,11 @@ export function EventCard({
       const docRef = doc(firestoreDB, "events", id);
       await deleteDoc(docRef);
       onUpdate();
-      console.log("Document deleted successfully!");
+      const dataRef = ref(realtimeDB, `chats/${id}`); // Replace with your data path
+      remove(dataRef)
+      console.log("Event deleted successfully!");
     } catch (error) {
-      console.error("Error deleting document:", error);
+      console.error("Error deleting event:", error);
     }
   }
 
@@ -159,7 +180,7 @@ export function EventCard({
             <div
               className={`flex items-center justify-center flex-none w-1/6 py-2 text-white font-medium rounded-md ${statusBgClass}`}
             >
-              Status
+              {status ? status.charAt(0).toUpperCase() + status.substr(1).toLowerCase() : ''}
             </div>
           )}
         </div>
@@ -177,7 +198,7 @@ export function EventCard({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Restore Event</AlertDialogTitle>
+                    <AlertDialogTitle>Restore Event</AlertDialogTitle>
                   </AlertDialogHeader>
                   <div className="py-2">
                     Are you sure you want to restore this event?
@@ -187,7 +208,7 @@ export function EventCard({
                       Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction onClick={handleRestore}>
-                      Confirm
+                      Restore
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -199,7 +220,7 @@ export function EventCard({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Deleting Event</AlertDialogTitle>
+                    <AlertDialogTitle>Delete Event</AlertDialogTitle>
                   </AlertDialogHeader>
                   <div className="py-2">
                     <p className="text-red-500 font-semibold">This is irreversable!</p>
@@ -210,7 +231,7 @@ export function EventCard({
                       Cancel
                     </AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete}>
-                      Confirm
+                      Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -232,7 +253,7 @@ export function EventCard({
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Archive</AlertDialogTitle>
+                    <AlertDialogTitle>Archive Event</AlertDialogTitle>
                   </AlertDialogHeader>
                   <div className="py-2">
                     Are you sure you want to archive this event?

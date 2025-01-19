@@ -9,19 +9,22 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProfileCard } from "@/components/profile-card";
-import { Plus, Trash2 } from "lucide-react"; // Import Plus icon from Lucide
+import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
-import { getDocs, collection, getDoc, doc, addDoc, query, where} from "firebase/firestore";
-import {  ref, set } from "firebase/database";
+import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc } from "firebase/firestore";
+import { get, ref, remove, set, update } from "firebase/database";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase"; // Make sure to import your firestore instance
 import { AgentData } from "@/firebase/collection-types";
+import { useSession } from "@/contexts/SessionContext";
 
-type Profile = {
-  imageSrc: string;
+type AgentDataMini = {
+  id: string;
+  avatar: string;
+  email: string;
   name: string;
   position: string;
-  status: boolean;
+  status: string;
 };
 
 const generatePassword = (length: number = 8) => {
@@ -35,36 +38,44 @@ const generatePassword = (length: number = 8) => {
 };
 
 export default function AgentListPage() {
-  const [profiles, setProfiles] = useState<AgentData[]>([]);
+
+  const { session } = useSession()
+  const isAdmin = session!.role === "admin";
+
+  const [agents, setAgents] = useState<AgentDataMini[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [shouldRefetch, setShouldRefetch] = useState(false);
 
-  const fetchAgents = async () => {
+  // Fetch agents when the component mounts
+  const getAllAgents = async (): Promise<any[]> => {
     try {
-      const querySnapshot = await getDocs(collection(firestoreDB, "agents"));
-      const agentData: AgentData[] = [];
+      // Reference to the /agents path
+      const agentsRef = ref(realtimeDB, "agents");
 
-      for (const docSnapshot of querySnapshot.docs) {
-        const data = docSnapshot.data() as AgentData;
+      // Get the snapshot of the /agents path
+      const snapshot = await get(agentsRef);
 
-        // Push the agent data
-        agentData.push({
-          id: docSnapshot.id, // Add the document ID to each agent's data
-          avatar: data.avatar || "https://via.placeholder.com/150", // Default avatar URL if missing
-          email: data.email || "No Email Provided",
-          firstName: data.firstName || "Unknown",
-          isActive: data.isActive || false,
-          isEmployed: data.isEmployed || false,
-          lastName: data.lastName || "Unknown",
-          password: data.password || "", // Ensure password is retrieved (use cautiously)
-          position: data.position || "Unknown Position",
-          role: data.role || "Unknown Role",
+      if (snapshot.exists()) {
+        const agentsData = snapshot.val();
+        // Convert the object into an array of agents
+        const agents = Object.entries(agentsData).map(([id, data]) => {
+          if (data && typeof data === "object") {
+            return { id, ...data };
+          } else {
+            console.warn(`Invalid data for agent ${id}:`, data);
+            return { id }; // Return only the ID if the data is invalid
+          }
         });
-      }
 
-      setProfiles(agentData)
+        console.log("Agents retrieved successfully:", agents);
+        return agents;
+      } else {
+        console.log("No agents found.");
+        return [];
+      }
     } catch (error) {
-      console.error("Error fetching agents:", error);
+      console.error("Error retrieving agents:", error);
+      return [];
     }
   };
 
@@ -74,7 +85,9 @@ export default function AgentListPage() {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setSelectedAgent(docSnap.data() as AgentData); // Update selected agent state
+        setIsEditing(false);
+        setSelectedAgent({ id, ...docSnap.data() } as AgentData);
+        setPassword(docSnap.data().password);
       } else {
         console.log("No such agent!");
       }
@@ -84,6 +97,11 @@ export default function AgentListPage() {
   };
 
   useEffect(() => {
+    const fetchAgents = async () => {
+      const agentsData = await getAllAgents();
+      setAgents(agentsData as AgentDataMini[]); // Setting the agents state after the data is fetched
+    };
+
     fetchAgents();
   }, [shouldRefetch]);
 
@@ -91,68 +109,60 @@ export default function AgentListPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // Dialog open state
 
   // Additional states for editing profile
-  const [avatar, setAvatar] = useState<string>("");
-  const [position, setPosition] = useState<string>("Unknown");
+  const [profile, setProfile] = useState<AgentData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [passwordMismatch, setPasswordMismatch] = useState<boolean>(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
-  const openAddAgent = () => {
-    // Placeholder function for adding an agent (e.g., save the data to your profiles)
-    const newAgentId = String(Object.keys(profiles).length + 1); // Example ID logic
-    const newProfile: Profile = {
-      imageSrc: "https://via.placeholder.com/150", // Default image for new agent
-      name: `${firstName} ${lastName}`,
-      position: "Unknown", // Default position
-      status: true, // Default status
-    };
-    setIsDialogOpen(false); // Close the dialog after adding
-    // Clear inputs
-    setFirstName("");
-    setLastName("");
-    setEmail("");
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prevState) => !prevState);
   };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setIsConfirmPasswordVisible((prevState) => !prevState);
+  };
+
 
   const handleAddAgent = async () => {
     try {
-      // Step 1: Check if the email already exists in Firestore
       const agentsRef = collection(firestoreDB, "agents");
       const q = query(agentsRef, where("email", "==", email));
 
       const querySnapshot = await getDocs(q);
 
-      // Step 2: If email exists, alert the user
       if (!querySnapshot.empty) {
         alert("An agent with this email already exists!");
         return;
       }
 
-      // Step 3: Create the new agent object
       const newAgent: AgentData = {
         avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp", // Default avatar URL if missing
         email: email,
         firstName: firstName,
-        isActive: true, // Default active status
-        isEmployed: true, // Default employed status
         lastName: lastName,
-        password: generatePassword(), // Placeholder password field, use cautiously
-        position: "Unknown", // Default position
-        role: "agent", // Default role
+        isActive: true,
+        isEmployed: true,
+        password: generatePassword(),
+        position: "Agent",
+        role: "agent",
       };
 
-      // Step 4: Add the new agent to Firestore
+      // Add to firestore
       const newUser = await addDoc(collection(firestoreDB, "agents"), newAgent);
 
-      // Add to realtimeDB
+      // Add to realtime database
       const agentStatusRef = ref(realtimeDB, `agents/${newUser.id}`);
       await set(agentStatusRef, {
-        status: "offline", // Default status
-        lastSeen: null,  // No activity yet
-        name: `${newAgent.firstName} ${newAgent.lastName}`, // Full name
+        status: "offline",
+        lastSeen: null,
+        position: newAgent.position,
+        name: `${newAgent.firstName} ${newAgent.lastName}`,
         email: newAgent.email,
         avatar: newAgent.avatar
       });
@@ -161,32 +171,106 @@ export default function AgentListPage() {
       setFirstName("");
       setLastName("");
       setEmail("");
-      setIsDialogOpen(false); // Close the dialog after adding
       setShouldRefetch(prev => !prev);
     } catch (error) {
       console.error("Error adding agent:", error);
     }
   };
 
-  const handleSaveChanges = () => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+    field: keyof AgentData
+  ) => {
+    if (selectedAgent) {
+      setSelectedAgent({
+        ...selectedAgent,
+        [field]: e.target.value,
+      });
+    }
+  };
+
+  const handleIsActiveChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const isEmployed = (e.target.value === 'true'); // Convert the string to boolean
+
+    if (selectedAgent) {
+      setSelectedAgent({
+        ...selectedAgent,
+        isEmployed,
+      });
+    }
+
+    console.log(selectedAgent?.isActive)
+  };
+
+  const handleCancelChanges = () => {
+    setPasswordMismatch(false);
+    setPassword('');
+    setConfirmPassword('');
+    setIsEditing(false)
+    setShouldRefetch(!shouldRefetch)
+  }
+
+  const handleSaveChanges = async () => {
     if (password !== confirmPassword) {
       setPasswordMismatch(true);
       return;
     }
 
-    // Save changes logic (e.g., update the agent profile in Firestore)
+    try {
+      const userDocRef = doc(firestoreDB, 'agents', selectedAgent!.id || "");
+      const updateData: Partial<AgentData> = { ...selectedAgent };
+
+      if (password) {
+        updateData.password = password;
+      }
+
+      await updateDoc(userDocRef, updateData);
+
+      const dataRef = ref(realtimeDB, `agents/${selectedAgent!.id}`)
+      update(dataRef, {
+        name: `${selectedAgent?.firstName} ${selectedAgent?.lastName}`,
+        position: selectedAgent?.position,
+        avatar: selectedAgent?.avatar,
+      })
+
+      // Clear password fields
+      setPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+
+    setShouldRefetch(!shouldRefetch)
+    fetchAgentDetails(selectedAgent!.id || "");
     setIsEditing(false);
     // Clear the password fields
     setPassword("");
     setConfirmPassword("");
   };
 
+  const handleDeleteAgent = async () => {
+    try {
+      const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
+      await deleteDoc(docRef);
+      const dataRef = ref(realtimeDB, `agents/${selectedAgent!.id}`); // Replace with your data path
+      remove(dataRef)
+      setSelectedAgent(null);
+      setIsEditing(false);
+      setShouldRefetch(!shouldRefetch)
+      console.log("Event deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+    }
+  }
+
   const handleavatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAvatar(reader.result as string);
+        if (profile) {
+          setProfile({ ...profile, avatar: reader.result as string });
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -194,20 +278,20 @@ export default function AgentListPage() {
 
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">
-      <h1 className="text-3xl font-semibold mb-4 ml-4">Agent List</h1>
+      <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Agent List</h1>
 
-      <Card className="flex flex-col w-full h-full">
+      <Card className="flex flex-col w-full h-full max-h-[96%]">
         <CardContent className="flex p-6 h-full gap-6">
           <ScrollArea className="min-w-[300px] max-w-[400px] rounded-md border">
             <div className="p-4">
               {/* Agent List */}
-              {profiles.map((profile) => (
-                <div key={profile.id} className="cursor-pointer pt-2 pb-2" onClick={() => fetchAgentDetails(profile.id ?? 'default-id')}>
+              {agents.map((agent) => (
+                <div key={agent.id} className="cursor-pointer pt-2 pb-2" onClick={() => fetchAgentDetails(agent.id ?? 'default-id')}>
                   <ProfileCard
-                    imageSrc={profile.avatar}
-                    name={`${profile.firstName} ${profile.lastName}`}
-                    position={profile.position || ""}
-                    status={profile.isActive}
+                    avatar={agent.avatar}
+                    name={agent.name}
+                    position={agent.position || "Unassigned"}
+                    status={"online"}
                   />
                 </div>
               ))}
@@ -217,192 +301,258 @@ export default function AgentListPage() {
           <div className="min-full h-full w-full flex flex-1 flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-3xl font-semibold">Agent File</h2>
-              <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <AlertDialogTrigger className="flex items-center p-2 bg-blue-500 text-white rounded-md">
-                  <Plus className="mr-2" /> Add Agent
-                </AlertDialogTrigger>
 
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Add New Agent</AlertDialogTitle>
-                  </AlertDialogHeader>
+              {isAdmin && (
+                isEditing ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger className="flex items-center bg-red-500 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                      <Trash2 className="h-4 w-4" />Delete Agent
+                    </AlertDialogTrigger>
 
-                  <form onSubmit={(e) => { e.preventDefault(); openAddAgent(); }}>
-                    <label className="block mb-4">First Name</label>
-                    <input
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full p-2 border rounded-md mb-4"
-                      placeholder="Enter first name"
-                      required
-                    />
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <div className="py-2">
+                        <p className="text-red-500 font-semibold">This is irreversable!</p>
+                        <p>Are you sure you want to permanently delete this agent?</p>
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteAgent}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border  h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                      <Plus className="h-4 w-4" />Add Agent
+                    </AlertDialogTrigger>
 
-                    <label className="block mb-4">Last Name</label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="w-full p-2 border rounded-md mb-4"
-                      placeholder="Enter last name"
-                      required
-                    />
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Add New Agent</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <label className="block">First Name</label>
+                      <input
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                        placeholder="Enter first name"
+                        required
+                      />
 
-                    <label className="block mb-4">Email</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-2 border rounded-md mb-4"
-                      placeholder="Enter email"
-                      required
-                    />
+                      <label className="block">Last Name</label>
+                      <input
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                        placeholder="Enter last name"
+                        required
+                      />
 
-                    <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction type="submit" onClick={(e) => {
-                        e.preventDefault(); // Prevent form submission
-                        handleAddAgent(); // Call your handler function
-                      }}>
-                        Add Agent
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </form>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <label className="block">Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                        placeholder="Enter email"
+                        required
+                      />
+
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={handleAddAgent}>
+                          Add Agent
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )
+              )}
+
             </div>
 
             {selectedAgent ? (
-              <Card className="flex flex-col flex-1 rounded-md border">
-                <CardContent className="flex flex-col flex-1 p-6">
-                  {/* Avatar (Profile Picture) */}
-                  <div className="mb-6 flex flex-col">
-                    <div
-                      onClick={() => {
-                        const fileInput = document.getElementById("avatarInput") as HTMLInputElement | null;
-                        if (fileInput) {
-                          fileInput.click();
-                        }
-                      }}
-                      className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
-                    >
-                      <img
-                        src={selectedAgent.avatar || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp"}  // Default to Gravatar if empty string
-                        alt="Profile"
-                        className="w-full h-full object-cover"
+              <Card className="w-full h-full flex flex-col">
+                <CardContent className="p-6 ">
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
+                    {/* Avatar (Profile Picture) */}
+                    <div className="sm:col-span-2 mb-6 flex flex-col items-center">
+                      <div
+                        onClick={() => {
+                          const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
+                          if (fileInput) {
+                            fileInput.click();
+                          }
+                        }}
+                        className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
+                      >
+                        <img
+                          src={
+                            profile?.avatar === ''
+                              ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
+                              : selectedAgent?.avatar
+                          }
+                          alt="selectedAgent"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <input
+                        type="file"
+                        id="avatarInput"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleavatarChange}
                       />
                     </div>
 
-                    <input
-                      type="file"
-                      id="avatarInput"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleavatarChange}
-                    />
-                  </div>
-
-                  {/* First Name */}
-                  <div className="mb-4 w-full max-w-xs">
-                    <label className="block mb-2">First Name</label>
-                    <input
-                      type="text"
-                      value={selectedAgent.firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      disabled={!isEditing}
-                      className="w-full p-2 border rounded-md"
-                    />
-                  </div>
-
-                  {/* Last Name */}
-                  <div className="mb-4 w-full max-w-xs">
-                    <label className="block mb-2">Last Name</label>
-                    <input
-                      type="text"
-                      value={selectedAgent.lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      disabled={!isEditing}
-                      className="w-full p-2 border rounded-md"
-                    />
-                  </div>
-
-                  {/* Email (not editable) */}
-                  <div className="mb-4 w-full max-w-xs">
-                    <label className="block mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={selectedAgent.email}
-                      disabled={true}
-                      className="w-full p-2 border rounded-md"
-                    />
-                  </div>
-
-                  {/* Position */}
-                  <div className="mb-4 w-full max-w-xs">
-                    <label className="block mb-2">Position</label>
-                    <input
-                      type="text"
-                      value={selectedAgent.position}
-                      onChange={(e) => setPosition(e.target.value)}
-                      disabled={!isEditing}
-                      className="w-full p-2 border rounded-md"
-                    />
+                    {/* Profile Fields */}
+                    {['firstName', 'lastName', 'email', 'position'].map((field) => (
+                      <div key={field} className="mb-4 w-full">
+                        <label className="block mb-2 capitalize">{field}</label>
+                        <input
+                          type="text"
+                          value={selectedAgent ? (selectedAgent[field as keyof AgentData] as string) : ''}
+                          onChange={(e) => handleInputChange(e, field as keyof AgentData)}
+                          disabled={!isEditing || ['email'].includes(field)}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   {/* Password */}
-                  {isEditing && (
-                    <>
-                      <div className="mb-4 w-full max-w-xs">
-                        <label className="block mb-2">Password</label>
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="w-full p-2 border rounded-md"
-                        />
+                  {isAdmin && (
+                    isEditing && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 w-full">
+
+                        <div className="mb-4 w-full">
+                          <label className="block mb-1">Role</label>
+                          <select
+                            className="border p-2 w-full"
+                            value={selectedAgent.role}  // Ensure it reflects the boolean state as 'true' or 'false'
+                            onChange={(e) => handleInputChange(e, 'role')}
+                          >
+                            <option hidden>Select role</option>
+                            <option value="agent">agent</option>
+                            <option value="admin">admin</option>
+                          </select>
+                        </div>
+
+                        <div className="mb-4 w-full">
+                          <label className="block mb-1">Employment Status</label>
+                          <select
+                            className="border p-2 w-full"
+                            value={selectedAgent.isEmployed ? 'true' : 'false'}  // Ensure it reflects the boolean state as 'true' or 'false'
+                            onChange={handleIsActiveChange}
+                          >
+                            <option hidden>Select employment status</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                          </select>
+                        </div>
+
+                        <div className="mb-4 w-full">
+                          <div className="flex relative group">
+                            <label className="block mb-2 mr-2">Password</label>
+                            <CircleHelp className="w-5 h-6" />
+                            <div className="hidden group-hover:block bg-gray-200 text-zinc-700 text-xs rounded-md p-2 ml-2 mb-4 flex flex-row">
+                              Put new password if you want to replace your current password, leave it empty if not.
+                            </div>
+                          </div>
+
+                          <div className="relative">
+                            <input
+                              type={isPasswordVisible ? 'text' : 'password'}
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="w-full p-2 border rounded-md"
+                            />
+                            <button
+                              type="button"
+                              onClick={togglePasswordVisibility}
+                              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                            >
+                              {isPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mb-6 w-full">
+                          <label className="block mb-2">Confirm Password</label>
+                          <div className="relative">
+                            <input
+                              type={isConfirmPasswordVisible ? 'text' : 'password'}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              className="w-full p-2 border rounded-md"
+                            />
+                            <button
+                              type="button"
+                              onClick={toggleConfirmPasswordVisibility}
+                              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                            >
+                              {isConfirmPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                          {passwordMismatch && <p className="text-red-500 text-sm mt-2">Passwords do not match!</p>}
+                        </div>
                       </div>
-                      <div className="mb-4 w-full max-w-xs">
-                        <label className="block mb-2">Confirm Password</label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full p-2 border rounded-md"
-                        />
-                      </div>
-                    </>
+                    )
                   )}
                 </CardContent>
+                <CardFooter className='self-end mt-auto'>
+                  {isAdmin && (
+                    isEditing ? (
+                      <div>
+                        <AlertDialog>
+                          <AlertDialogTrigger className="bg-zinc-700 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
+                            Cancel
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Edit Agent</AlertDialogTitle>
+                            </AlertDialogHeader>
+                            Are you sure you want to discard the changes?
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>No</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleCancelChanges}>Yes</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
 
-                <CardFooter className="flex gap-4 justify-end">
-                  {/* Buttons */}
-                  <div className="flex justify-between">
-                    {isEditing ? (
-                      <>
-                        <button
-                          className="px-4 py-2 bg-red-500 text-white rounded-md"
-                          onClick={() => setIsEditing(false)} // Cancel editing
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          className="px-4 py-2 bg-green-500 text-white rounded-md ml-4"
-                          onClick={handleSaveChanges}
-                        >
-                          Save Changes
-                        </button>
-                      </>
+                        <AlertDialog>
+                          <AlertDialogTrigger className="bg-white text-zinc-900 border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
+                            Save Changes
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Edit Agent</AlertDialogTitle>
+                            </AlertDialogHeader>
+                            Are you sure you want to save these changes?
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     ) : (
-                      <button
-                        className="px-4 py-2 bg-blue-500 text-white rounded-md"
-                        onClick={() => setIsEditing(true)} // Start editing
-                      >
-                        Edit Agent
+                      <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
+                        Edit Profile
                       </button>
-                    )}
-                  </div>
+                    )
+                  )}
                 </CardFooter>
               </Card>
             ) : (

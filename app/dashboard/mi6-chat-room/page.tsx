@@ -136,7 +136,7 @@ export default function MI6ChatRoomPage() {
               >
                 {/* For the current user's message, only show the text */}
                 {isCurrentUser ? (
-                  <div className="p-3 rounded-lg bg-blue-100 text-stone-900 max-w-[60%]">
+                  <div className="p-3 rounded-lg bg-blue-200 text-stone-900 max-w-[60%]">
                     <div>{message.text}</div>
                   </div>
                 ) : (

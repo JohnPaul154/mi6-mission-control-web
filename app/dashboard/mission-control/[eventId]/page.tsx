@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { set, ref, remove } from "firebase/database";
@@ -25,6 +25,7 @@ import {
 export default function EventPage() {
 
   // Parameters (in the url)
+  const router = useRouter();
   const params = useParams();
   const { eventId } = params as { eventId: string };
 
@@ -148,14 +149,19 @@ export default function EventPage() {
         });
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
+        router.push("/dashboard/mission-control/");
       } catch (error) {
         console.error("Error saving event data:", error);
       }
     }
   };
 
-  // Fetch all agents for assigning
+  const handleCancelChanges = () => {
+    setShouldRefetch(!shouldRefetch)
+    setIsEditable(false);
+  };
 
+  // Fetch all agents for assigning
   const fetchAllAvailableAgents = async () => {
     try {
       const agentsCollectionRef = collection(firestoreDB, 'agents');
@@ -354,19 +360,45 @@ export default function EventPage() {
 
                 {/* Control Buttons */}
                 <div className="flex">
-                  <button
-                    onClick={handleEditClick}
-                    className="text-white"
-                  >
-                    {isEditable ? <X /> : <Edit />}
-                  </button>
-                  {isEditable && (
-                    <button
-                      onClick={handleSaveChanges}
-                      className="text-white pl-4"
-                    >
-                      <Save />
+
+                  {isEditable ?
+                    <AlertDialog>
+                      <AlertDialogTrigger className="text-white pl-4">
+                        <X className="h-8 w-8" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Edit Event Details</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        Are you sure you want to discard these changes?
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleCancelChanges}>Discard</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    :
+                    <button onClick={handleEditClick}>
+                      <Edit />
                     </button>
+                  }
+
+                  {isEditable && (
+                    <AlertDialog>
+                      <AlertDialogTrigger className="text-white pl-4">
+                        <Save />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Edit Event Details</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        Are you sure you want to save these changes?
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               </div>
@@ -404,10 +436,11 @@ export default function EventPage() {
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.layout}
+                      value={event.layout || ""}
                       disabled={!isEditable}
                       onChange={(e) => handleInputChange(e, 'layout')}
                     >
+                      <option hidden>Select a layout</option>
                       <option value="4R Thin Frame">4R Thin Frame</option>
                       <option value="4R Standard">4R Standard</option>
                       <option value="4R Landscape">4R Landscape</option>
@@ -433,9 +466,10 @@ export default function EventPage() {
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.package}
+                      value={event.package || ""}
                       onChange={(e) => handleInputChange(e, 'package')}
                     >
+                      <option hidden>Select a package</option>
                       <option value="Agent Package">Agent Package</option>
                       <option value="Director Package">Director Package</option>
                       <option value="Governor's Package">Governor's Package</option>
@@ -550,13 +584,21 @@ export default function EventPage() {
                       <div key={agentRef.id}>
                         <div className="flex justify-between items-center">
                           <p>{event.agentNames![index] || "Unkown Agent"}</p>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAgent(agentRef)}
-                            className="text-red-500"
-                          >
-                            <X />
-                          </button>
+                          <AlertDialog>
+                            <AlertDialogTrigger className="text-red-500">
+                              <X/>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Agent</AlertDialogTitle>
+                              </AlertDialogHeader>
+                              Are you sure you want to remove this agent from this event?
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRemoveAgent(agentRef)}>Remove</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                         <Separator className="mt-4" />
                       </div>
@@ -638,18 +680,26 @@ export default function EventPage() {
               </div>
               <ScrollArea className="h-60 w-full rounded-md border">
                 <div className="p-4 space-y-4">
-                  {event.arsenal && event.arsenalNames && event.agents.length > 0 && event.arsenalNames.length > 0 ? (
+                  {event.arsenal && event.arsenalNames && event.arsenal.length > 0 && event.arsenalNames.length > 0 ? (
                     event.arsenal.map((arsenalRef, index) => (
                       <div key={arsenalRef.id}>
                         <div className="flex justify-between items-center">
-                          <p>{event.arsenalNames![index] || "Unkown Agent"}</p>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveArsenal(arsenalRef)}
-                            className="text-red-500"
-                          >
-                            <X />
-                          </button>
+                          <p>{event.arsenalNames![index] || "Unkown Arsenal"}</p>
+                          <AlertDialog>
+                            <AlertDialogTrigger className="text-red-500">
+                              <X/>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove Arsenal</AlertDialogTitle>
+                              </AlertDialogHeader>
+                              Are you sure you want to remove this arsenal from this event?
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRemoveArsenal(arsenalRef)}>Remove</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                         <Separator className="mt-4" />
                       </div>

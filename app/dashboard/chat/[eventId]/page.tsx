@@ -18,7 +18,7 @@ import { useState, useRef, useEffect } from "react";
 import { MoreVertical } from "lucide-react";
 import { useChat } from '@/contexts/ChatContext';
 import { useSession } from "@/contexts/SessionContext";
-import { get, ref } from "firebase/database";
+import { get, onValue, ref, set } from "firebase/database";
 import { realtimeDB, firestoreDB } from "@/firebase/init-firebase";
 import { useParams } from "next/navigation";
 import { doc, getDoc, Timestamp, DocumentReference } from "firebase/firestore";
@@ -44,6 +44,7 @@ export default function EventChatPage() {
   // Message states
   const [message, setMessage] = useState("");
   const [agents, setAgents] = useState<any[]>([])
+  const [status, setStatus] = useState("");
 
   // Function that loads everytime you get to this screen
   useEffect(() => {
@@ -106,7 +107,6 @@ export default function EventChatPage() {
     setCurrentChat({ id: eventId });
   }, [setCurrentChat]);
 
-
   // Fetch agents when the component mounts
   const getAllAgents = async (): Promise<any[]> => {
     try {
@@ -148,6 +148,29 @@ export default function EventChatPage() {
     fetchAgents();
   }, []);
 
+  // Fetch status realtime
+  useEffect(() => {
+    const statusRef = ref(realtimeDB, `chats/${eventId}/info/status`);
+
+    // Listen for changes
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      const value = snapshot.val();
+      if (value) {
+        setStatus(value);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleStatusChange = (newStatus: string) => {
+    const statusRef = ref(realtimeDB, `chats/${eventId}/info/status`);
+    set(statusRef, newStatus);
+    setStatus(newStatus); // Optional: Update the state locally for immediate feedback
+  };
+
   // Scroll to the bottom when new messages are added
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -188,10 +211,39 @@ export default function EventChatPage() {
             </PopoverTrigger>
             <PopoverContent className="flex flex-col p-4 max-h-[50vh] overflow-y-auto">
 
-              {/* Details */}
-              <h2 className="text-2xl self-center font-semibold pb-4">Details</h2>
+              {/* Status */}
+              <h2 className="text-2xl self-center font-semibold pb-2 mb-2">Status</h2>
 
-              <div className="w-full p-4 mb-4 rounded-md shadow-sm">
+              <div className="w-full p-2 bg-zinc-800 rounded-lg shadow-md mb-4">
+                <div className="flex justify-center gap-2">
+                  <button
+                    className={`w-24 h-8 px-2 rounded-md text-center text-sm ${status === "good" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700"
+                      }`}
+                    onClick={() => handleStatusChange("good")}
+                  >
+                    Good
+                  </button>
+                  <button
+                    className={`w-24 h-8 px-2 rounded-md text-center text-sm  ${status === "alert" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"
+                      }`}
+                    onClick={() => handleStatusChange("alert")}
+                  >
+                    Alert
+                  </button>
+                  <button
+                    className={`w-24 h-8 px-2 rounded-md text-center text-sm  ${status === "critical" ? "bg-red-500 text-white" : "bg-gray-100 text-gray-700"
+                      }`}
+                    onClick={() => handleStatusChange("critical")}
+                  >
+                    Critical
+                  </button>
+                </div>
+              </div>
+
+              {/* Details */}
+              <h2 className="text-2xl self-center font-semibold">Details</h2>
+
+              <div className="w-full p-4 rounded-md shadow-sm">
                 <p className="text-sm mt-2">Event Name: {event?.eventName}</p>
                 <p className="text-sm mt-2">Location: {event?.location}</p>
                 <p className="text-sm mt-2">Date: {event?.eventDate}</p>
@@ -299,7 +351,7 @@ export default function EventChatPage() {
               >
                 {/* For the current user's message, only show the text */}
                 {isCurrentUser ? (
-                  <div className="p-3 rounded-lg bg-blue-100 text-stone-900 max-w-[60%]">
+                  <div className="p-3 rounded-lg bg-blue-200 text-stone-900 max-w-[60%]">
                     <div>{message.text}</div>
                   </div>
                 ) : (

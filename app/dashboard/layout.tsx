@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <SidebarProvider className="w-screen h-screen">
       <AppSidebar />
       <div className="flex items-center h-100 w-6 bg-zinc-900">
-        <SidebarTrigger />
+        <SidebarTrigger className="h-full"/>
       </div>
       <main className="flex-grow w-full h-full overflow-auto">
         {children}

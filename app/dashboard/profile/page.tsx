@@ -6,7 +6,7 @@ import { firestoreDB } from '@/firebase/init-firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { AgentData } from '@/firebase/collection-types'; // Assuming this is where AgentData is defined
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp, Eye, EyeOff } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
 
 
 export default function ProfilePage() {
@@ -28,6 +29,9 @@ export default function ProfilePage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordMismatch, setPasswordMismatch] = useState(false);
+  const [shouldRefetch, setShouldRefetch] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -49,8 +53,19 @@ export default function ProfilePage() {
     };
 
     fetchUserProfile();
-  }, [session]);
+  }, [session, shouldRefetch]);
 
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prevState) => !prevState);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setIsConfirmPasswordVisible((prevState) => !prevState);
+  };
+
+
+  // Handle inputs
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
     field: keyof AgentData
@@ -75,6 +90,14 @@ export default function ProfilePage() {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleCancelChanges = () => {
+    setPasswordMismatch(false);
+    setPassword('');
+    setConfirmPassword('');
+    setIsEditing(false)
+    setShouldRefetch(!shouldRefetch)
+  }
 
   const handleSaveChanges = async () => {
     if (password !== confirmPassword) {
@@ -115,104 +138,139 @@ export default function ProfilePage() {
       </h1>
 
       <Card className="w-full h-full flex flex-col">
-        <CardContent className="flex flex-col flex-1 p-6">
-          {/* Avatar (Profile Picture) */}
-          <div className="mb-6 flex flex-col">
-            <div
-              onClick={() => {
-                const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
-                if (fileInput) {
-                  fileInput.click();
-                }
-              }}
-              className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
-            >
-              <img
-                src={
-                  profile?.avatar === ''
-                    ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
-                    : profile?.avatar
-                }
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <input
-              type="file"
-              id="avatarInput"
-              accept="image/*"
-              className="hidden"
-              onChange={handleavatarChange}
-            />
-          </div>
-
-          {/* Profile Fields */}
-          {['firstName', 'lastName', 'position', 'role', 'email'].map((field) => (
-            <div key={field} className="mb-4 w-full max-w-xs">
-              <label className="block mb-2 capitalize">{field}</label>
+        <CardContent className="p-6 ">
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
+            {/* Avatar (Profile Picture) */}
+            <div className="sm:col-span-2 mb-6 flex flex-col items-center">
+              <div
+                onClick={() => {
+                  const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
+                  if (fileInput) {
+                    fileInput.click();
+                  }
+                }}
+                className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
+              >
+                <img
+                  src={
+                    profile?.avatar === ''
+                      ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
+                      : profile?.avatar
+                  }
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <input
-                type="text"
-                value={profile ? (profile[field as keyof AgentData] as string) : ''}
-                onChange={(e) => handleInputChange(e, field as keyof AgentData)}
-                disabled={!isEditing || ['email', 'role', 'position'].includes(field)}
-                className="w-full p-2 border rounded-md"
+                type="file"
+                id="avatarInput"
+                accept="image/*"
+                className="hidden"
+                onChange={handleavatarChange}
               />
             </div>
-          ))}
+
+            {/* Profile Fields */}
+            {['firstName', 'lastName', 'email', 'position'].map((field) => (
+              <div key={field} className="mb-4 w-full">
+                <label className="block mb-2 capitalize">{field}</label>
+                <input
+                  type="text"
+                  value={profile ? (profile[field as keyof AgentData] as string) : ''}
+                  onChange={(e) => handleInputChange(e, field as keyof AgentData)}
+                  disabled={!isEditing || ['email', 'role', 'position'].includes(field)}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+            ))}
+          </div>
 
           {/* Password */}
           {isEditing && (
-            <div>
-              <div className="mb-4 w-full max-w-xs">
-
-                <div className='flex relative group'>
-                  <label className="block mb-2 mr-2">Password </label>
-                  <CircleHelp className='w-5 h-6 ' />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 w-full">
+              <div className="mb-4 w-full">
+                <div className="flex relative group">
+                  <label className="block mb-2 mr-2">Password</label>
+                  <CircleHelp className="w-5 h-6" />
                   <div className="hidden group-hover:block bg-gray-200 text-zinc-700 text-xs rounded-md p-2 ml-2 mb-4 flex flex-row">
                     Put new password if you want to replace your current password, leave it empty if not.
                   </div>
                 </div>
 
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                />
+                <div className="relative">
+                  <input
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {isPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
-              <div className="mb-6 w-full max-w-xs">
+              <div className="mb-6 w-full">
                 <label className="block mb-2">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                />
-                {passwordMismatch && (
-                  <p className="text-red-500 text-sm">Passwords do not match!</p>
-                )}
+                <div className="relative">
+                  <input
+                    type={isConfirmPasswordVisible ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleConfirmPasswordVisibility}
+                    className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {isConfirmPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {passwordMismatch && <p className="text-red-500 text-sm mt-2">Passwords do not match!</p>}
               </div>
             </div>
           )}
         </CardContent>
-        <CardFooter>
+        <CardFooter className='self-end mt-auto'>
           {isEditing ? (
-            <AlertDialog>
-              <AlertDialogTrigger className="p-2 bg-red-500 text-white rounded-md">
+            <div>
+              <AlertDialog>
+                <AlertDialogTrigger className="bg-zinc-700 text-white border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
+                  Cancel
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Edit Profile</AlertDialogTitle>
+                  </AlertDialogHeader>
+                  Are you sure you want to discard the changes?
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancelChanges}>Discard</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger className="bg-white text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
                   Save Changes
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Edit Profile</AlertDialogTitle>
-                </AlertDialogHeader>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Edit Profile</AlertDialogTitle>
+                  </AlertDialogHeader>
                   Are you sure you want to save these changes?
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           ) : (
             <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
               Edit Profile

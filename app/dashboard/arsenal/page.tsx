@@ -22,6 +22,7 @@ import { EventData, ArsenalData } from "@/firebase/collection-types";
 import { Timestamp, DocumentReference } from "firebase/firestore";
 
 // Component Imports
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -103,7 +104,7 @@ export const EquipmentTable: React.FC<{
   };
 
   return (
-    <Table>
+    <Table className="mt-4">
       <TableHeader>
         <TableRow>
           <TableHead className="w-8/12">Equipment</TableHead>
@@ -317,11 +318,11 @@ const ArsenalPage: React.FC = () => {
   };
 
   return (
-    <div className="mim-full flex p-4 flex-1 flex-col">
-      <h1 className="text-3xl font-semibold mb-4 ml-4">Arsenal</h1>
+    <div className="mim-full h-full flex p-4 flex-1 flex-col">
+      <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Arsenal</h1>
 
-      <Card className="w-full h-full flex flex-col">
-        <CardContent className="flex-1 flex flex-col flex-1 p-6 overflow-hidden">
+      <Card className="w-full h-full flex flex-col max-h-[96%]">
+        <CardContent className="flex-1 flex flex-col flex-1 p-6">
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="grid w-full">
             <div className='flex'>
               
@@ -335,8 +336,8 @@ const ArsenalPage: React.FC = () => {
               {/* Add equipment (for admin only) */}
               {isAdmin && (
                 <AlertDialog>
-                  <AlertDialogTrigger className="flex items-center p-2 bg-zinc-500 rounded-lg ml-6">
-                    <Plus className="w-5 h-5" />
+                  <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                      <Plus className='h-4 w-4'/>Add Arsenal
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -397,10 +398,6 @@ const ArsenalPage: React.FC = () => {
             </TabsContent>
           </Tabs>
         </CardContent>
-
-        <CardFooter className="flex-none flex justify-end pt-4">
-          
-        </CardFooter>
       </Card>
     </div>
   );
