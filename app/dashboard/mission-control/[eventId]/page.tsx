@@ -10,7 +10,7 @@ import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Edit, Save, Plus } from "lucide-react";
+import { X, Undo2, Edit, Save, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function EventPage() {
+
+  // Add temp add/edit, should not be saved when click save
 
   // Parameters (in the url)
   const router = useRouter();
@@ -145,11 +147,12 @@ export default function EventPage() {
           contactPerson: event.contactPerson || "",
           contactNumber: event.contactNumber || "",
           eventDate: event.eventDate || "",
+          hqt: event.hqt || "",
+          aop: event.aop || "",
           notes: event.notes || "",
         });
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
-        router.push("/dashboard/mission-control/");
       } catch (error) {
         console.error("Error saving event data:", error);
       }
@@ -364,7 +367,7 @@ export default function EventPage() {
                   {isEditable ?
                     <AlertDialog>
                       <AlertDialogTrigger className="text-white pl-4">
-                        <X className="h-8 w-8" />
+                        <Undo2 className="h-8 w-8" />
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -482,6 +485,32 @@ export default function EventPage() {
                       disabled={!isEditable}
                     />
                   )}
+                </div>
+
+                {/* HQT Field */}
+                <div className="md:order-5">
+                  <label className="block mb-1">HQT</label>
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.hqt}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'hqt')}
+                    placeholder="Enter HQT"
+                  />
+                </div>
+
+                {/* AOP Field */}
+                <div className="md:order-5">
+                  <label className="block mb-1">AOP</label>
+                  <input
+                    type="text"
+                    className="border p-2 w-full"
+                    value={event.aop}
+                    disabled={!isEditable}
+                    onChange={(e) => handleInputChange(e, 'aop')}
+                    placeholder="Enter AOP"
+                  />
                 </div>
 
                 {/* Contact Person Field */}

@@ -66,8 +66,43 @@ import {
   Trash2,
   Edit,
   X,
-  Save
+  Save,
+  ChevronDown
 } from 'lucide-react';
+
+interface Item {
+  name: string;
+  serial: string;
+  details: string;
+}
+
+const ItemCard: React.FC<{ item: Item }> = ({ item }) => {
+  // State to toggle visibility of serial and details
+  const [isOpen, setIsOpen] = useState(false);
+
+  const toggleDetails = () => {
+    setIsOpen((prev) => !prev); // Toggle the state
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center">
+        <span>{item.name}</span>
+        <button onClick={toggleDetails} aria-label="Toggle Details">
+          <ChevronDown className={`w-5 h-5 ${isOpen ? "rotate-180" : ""}`} />
+        </button>
+      </div>
+
+      {/* Conditionally render the serial and details based on isOpen */}
+      {isOpen && (
+        <div className="mt-2 pl-6">
+          <div className="text-sm text-gray-400">Serial: {item.serial}</div>
+          <div className="text-sm text-gray-400">Details: {item.details}</div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const EquipmentTable: React.FC<{ 
   equipment: ArsenalData[], 
@@ -107,7 +142,7 @@ export const EquipmentTable: React.FC<{
     <Table className="mt-4">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-8/12">Equipment</TableHead>
+          <TableHead className="w-11/12">Equipment</TableHead>
           {isAdmin && <TableHead className="w-[50px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
@@ -115,16 +150,11 @@ export const EquipmentTable: React.FC<{
         {equipment.map((item) => (
           <TableRow key={item.id || ""}>
             <TableCell className="w-1/2 py-4">
-              {editingItemId === item.id || "" ? (
-                <input
-                  type="text"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                />
-              ) : (
-                item.name
-              )}
+              
+              <ItemCard 
+                item = {item}
+              />
+              
             </TableCell>
             {/* Edit|Delete arsenal (for admin only) */}
             {isAdmin && (
@@ -257,13 +287,13 @@ const ArsenalPage: React.FC = () => {
     fetchEquipments("printer", setPrinterEquipment);
   }, []);
 
-  const handleAddArsenal = async (name: string, type: string) => {
+  const handleAddArsenal = async (name: string, type: string, serial: string, details: string) => {
     try {
       const docRef = await addDoc(collection(firestoreDB, "arsenal"), {
         name: name,
         type: type,
-        events: [],
-        dateAdded: serverTimestamp(),
+        details: details,
+        serial: serial
       });
       console.log("Document written with ID: ", docRef.id);
 
@@ -349,7 +379,9 @@ const ArsenalPage: React.FC = () => {
                         const formData = new FormData(e.currentTarget);
                         const arsenalType = formData.get("arsenalType") as string;
                         const arsenalName = formData.get("arsenalName") as string;
-                        handleAddArsenal(arsenalName, arsenalType);
+                        const serial = formData.get("serial") as string;
+                        const details = formData.get("details") as string;
+                        handleAddArsenal(arsenalName, arsenalType, serial, details);
                       }}
                     >
                       <Label htmlFor="arsenalName" className="block mb-4">Name</Label>
@@ -359,6 +391,25 @@ const ArsenalPage: React.FC = () => {
                         id="arsenalName"
                         className="w-full p-2 border rounded-md mb-4"
                         placeholder="Enter arsenal name"
+                        required
+                      />
+
+                      <Label htmlFor="serial" className="block mb-4">Serial Number</Label>
+                      <input
+                        type="text"
+                        name="serial"
+                        id="serial"
+                        className="w-full p-2 border rounded-md mb-4"
+                        placeholder="Enter serial number"
+                        required
+                      />
+
+                      <Label htmlFor="details" className="block mb-4">Details</Label>
+                      <textarea
+                        name="details"
+                        id="details"
+                        className="w-full p-2 border rounded-md mb-4"
+                        placeholder="Enter details"
                         required
                       />
                       <Label className="block mb-4">Type</Label>

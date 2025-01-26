@@ -112,6 +112,8 @@ export default function MissionControlPage() {
           package: data.package || "",
           layout: data.layout || "",
           notes: data.notes || "",
+          hqt: data.hqt || "",
+          aop: data.aop || "",
           isArchive: data.isArchive || false,
         };
       });
@@ -127,7 +129,6 @@ export default function MissionControlPage() {
       console.error("Error fetching events:", error);
     }
   };
-
 
   useEffect(() => {
     fetchEvents();
@@ -148,6 +149,8 @@ export default function MissionControlPage() {
       package: "",
       layout: "",
       eventDate: "",
+      hqt: "",
+      aop: "",
       dateAdded: Timestamp.now(),
       isArchive: false,
     };

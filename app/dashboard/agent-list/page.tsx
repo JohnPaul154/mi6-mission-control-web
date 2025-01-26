@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProfileCard } from "@/components/profile-card";
-import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp } from "lucide-react"; // Import Plus icon from Lucide
+import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
 import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc } from "firebase/firestore";
@@ -45,6 +45,19 @@ export default function AgentListPage() {
   const [agents, setAgents] = useState<AgentDataMini[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [shouldRefetch, setShouldRefetch] = useState(false);
+
+  // Add state for new agent details
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+
+  // Additional states for editing profile
+  const [profile, setProfile] = useState<AgentData | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [password, setPassword] = useState<string>("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [birthday, setBirthday] = useState("");
+  const [dateHired, setDateHired] = useState("");
 
   // Fetch agents when the component mounts
   const getAllAgents = async (): Promise<any[]> => {
@@ -87,6 +100,8 @@ export default function AgentListPage() {
       if (docSnap.exists()) {
         setIsEditing(false);
         setSelectedAgent({ id, ...docSnap.data() } as AgentData);
+        setBirthday(docSnap.data().birthday || "");
+        setDateHired(docSnap.data().dateHired || "")
         setPassword(docSnap.data().password);
       } else {
         console.log("No such agent!");
@@ -105,29 +120,10 @@ export default function AgentListPage() {
     fetchAgents();
   }, [shouldRefetch]);
 
-  // Add state for new agent details
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-
-  // Additional states for editing profile
-  const [profile, setProfile] = useState<AgentData | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [password, setPassword] = useState<string>("");
-  const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [passwordMismatch, setPasswordMismatch] = useState<boolean>(false);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
-
   // Toggle password visibility
   const togglePasswordVisibility = () => {
     setIsPasswordVisible((prevState) => !prevState);
   };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setIsConfirmPasswordVisible((prevState) => !prevState);
-  };
-
 
   const handleAddAgent = async () => {
     try {
@@ -146,11 +142,15 @@ export default function AgentListPage() {
         email: email,
         firstName: firstName,
         lastName: lastName,
-        isActive: true,
-        isEmployed: true,
-        password: generatePassword(),
-        position: "Agent",
+        position: "Operator",
+        address: "",
+        birthday: "",
+        contactNumber: "",
+        dateHired: "",
         role: "agent",
+        password: generatePassword(),
+        isNew: true,
+        isArchive: false,
       };
 
       // Add to firestore
@@ -189,40 +189,16 @@ export default function AgentListPage() {
     }
   };
 
-  const handleIsActiveChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const isEmployed = (e.target.value === 'true'); // Convert the string to boolean
-
-    if (selectedAgent) {
-      setSelectedAgent({
-        ...selectedAgent,
-        isEmployed,
-      });
-    }
-
-    console.log(selectedAgent?.isActive)
-  };
-
   const handleCancelChanges = () => {
-    setPasswordMismatch(false);
     setPassword('');
-    setConfirmPassword('');
     setIsEditing(false)
     setShouldRefetch(!shouldRefetch)
   }
 
   const handleSaveChanges = async () => {
-    if (password !== confirmPassword) {
-      setPasswordMismatch(true);
-      return;
-    }
-
     try {
       const userDocRef = doc(firestoreDB, 'agents', selectedAgent!.id || "");
-      const updateData: Partial<AgentData> = { ...selectedAgent };
-
-      if (password) {
-        updateData.password = password;
-      }
+      const { id, ...updateData } = selectedAgent!;
 
       await updateDoc(userDocRef, updateData);
 
@@ -235,7 +211,6 @@ export default function AgentListPage() {
 
       // Clear password fields
       setPassword('');
-      setConfirmPassword('');
     } catch (error) {
       console.error('Error updating profile:', error);
     }
@@ -245,21 +220,49 @@ export default function AgentListPage() {
     setIsEditing(false);
     // Clear the password fields
     setPassword("");
-    setConfirmPassword("");
   };
+
+  const handleResetPassword = async () => {
+    try {
+      const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
+      await updateDoc(docRef, {
+        password: generatePassword()
+      });
+      setShouldRefetch(!shouldRefetch);
+      fetchAgentDetails(selectedAgent!.id || "");
+      
+    } catch (error) {
+      console.error("Error deleting event:", error);
+    }
+  }
 
   const handleDeleteAgent = async () => {
     try {
       const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
       await deleteDoc(docRef);
-      const dataRef = ref(realtimeDB, `agents/${selectedAgent!.id}`); // Replace with your data path
+      const dataRef = ref(realtimeDB, `agents/${selectedAgent!.id}`);
       remove(dataRef)
       setSelectedAgent(null);
       setIsEditing(false);
       setShouldRefetch(!shouldRefetch)
       console.log("Event deleted successfully!");
     } catch (error) {
-      console.error("Error deleting event:", error);
+      console.error("Error deleting agent:", error);
+    }
+  }
+
+  const handleArchiveAgent = async () => {
+    try {
+      const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
+      await updateDoc(docRef, {
+        isArchive: true
+      });
+      const dataRef = ref(realtimeDB, `agents/${selectedAgent!.id}`);
+      remove(dataRef)
+      setShouldRefetch(!shouldRefetch);
+      fetchAgentDetails(selectedAgent!.id || "");
+    } catch (error) {
+      console.error("Error deleting agent:", error);
     }
   }
 
@@ -276,11 +279,29 @@ export default function AgentListPage() {
     }
   };
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const newDate = e.target.value
+
+    if (field === "birthday") {
+      setSelectedAgent({
+        ...selectedAgent!,
+        birthday: newDate
+      });
+      setBirthday(newDate);
+    } else if (field === "dateHired") {
+      setSelectedAgent({
+        ...selectedAgent!,
+        dateHired: newDate
+      });
+      setDateHired(newDate);
+    }
+  };
+
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">
       <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Agent List</h1>
 
-      <Card className="flex flex-col w-full h-full max-h-[96%]">
+      <Card className="flex flex-col w-full">
         <CardContent className="flex p-6 h-full gap-6">
           <ScrollArea className="min-w-[300px] max-w-[400px] rounded-md border">
             <div className="p-4">
@@ -291,7 +312,6 @@ export default function AgentListPage() {
                     avatar={agent.avatar}
                     name={agent.name}
                     position={agent.position || "Unassigned"}
-                    status={"online"}
                   />
                 </div>
               ))}
@@ -306,23 +326,22 @@ export default function AgentListPage() {
                 isEditing ? (
                   <AlertDialog>
                     <AlertDialogTrigger className="flex items-center bg-red-500 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
-                      <Trash2 className="h-4 w-4" />Delete Agent
+                      <Archive className="h-4 w-4" />Archive Agent
                     </AlertDialogTrigger>
 
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+                        <AlertDialogTitle>Archive Agent</AlertDialogTitle>
                       </AlertDialogHeader>
                       <div className="py-2">
-                        <p className="text-red-500 font-semibold">This is irreversable!</p>
-                        <p>Are you sure you want to permanently delete this agent?</p>
+                        <p>Are you sure you want to archive this agent?</p>
                       </div>
                       <AlertDialogFooter>
                         <AlertDialogCancel>
                           Cancel
                         </AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAgent}>
-                          Delete
+                        <AlertDialogAction onClick={handleArchiveAgent}>
+                          Archive
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -416,97 +435,169 @@ export default function AgentListPage() {
                       />
                     </div>
 
-                    {/* Profile Fields */}
-                    {['firstName', 'lastName', 'email', 'position'].map((field) => (
-                      <div key={field} className="mb-4 w-full">
-                        <label className="block mb-2 capitalize">{field}</label>
-                        <input
-                          type="text"
-                          value={selectedAgent ? (selectedAgent[field as keyof AgentData] as string) : ''}
-                          onChange={(e) => handleInputChange(e, field as keyof AgentData)}
-                          disabled={!isEditing || ['email'].includes(field)}
-                          className="w-full p-2 border rounded-md"
-                        />
-                      </div>
-                    ))}
+                    {/* First Name Field */}
+                    <div>
+                      <label className="block mb-1">First Name</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={selectedAgent.firstName || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'firstName')}
+                      />
+                    </div>
+
+                    {/* Last Name Field */}
+                    <div>
+                      <label className="block mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={selectedAgent.lastName || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'lastName')}
+                      />
+                    </div>
+
+                    {/* Email Field */}
+                    <div>
+                      <label className="block mb-1">Email</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={selectedAgent.email || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'email')}
+                      />
+                    </div>
+
+                    {/* Position Field */}
+                    <div className="mb-4 w-full">
+                      <label className="block mb-1">Position</label>
+                      <select
+                        className="border p-2 w-full"
+                        value={selectedAgent.position || ""}
+                        onChange={(e) => handleInputChange(e, 'position')}
+                        disabled={!isEditing}
+                      >
+                        <option hidden>Select position</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Operator">Operator</option>
+                        <option value="Shooter">Shooter</option>
+                        <option value="Specialist">Specialist</option>
+                      </select>
+                    </div>
+
+                    {/* Birthday Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Birthday</label>
+                      <input
+                        type="date"
+                        className="border p-2 w-full"
+                        value={birthday || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => { handleDateChange(e, "birthday") }}
+                      />
+                    </div>
+
+                    {/* Contact Number Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Contact Number</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={selectedAgent.contactNumber || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'contactNumber')}
+                      />
+                    </div>
+
+                    {/* Date Hired Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Date Hired</label>
+                      <input
+                        type="date"
+                        className="border p-2 w-full"
+                        value={dateHired || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => { handleDateChange(e, "dateHired") }}
+                      />
+                    </div>
+
+                    {/* Address Field */}
+                    <div className="mb-4 w-full col-span-2 ">
+                      <label className="block mb-2 capitalize">Address</label>
+                      <input
+                        type="text"
+                        value={selectedAgent.address || ""}
+                        disabled={!isEditing}
+                        className="w-full p-2 border rounded-md"
+                        onChange={(e) => handleInputChange(e, 'address')}
+                      />
+                    </div>
+
+                    {/* Role Field */}
+                    <div className="mb-4 w-full md:order-8">
+                      <label className="block mb-1">Role</label>
+                      <select
+                        className="border p-2 w-full"
+                        disabled={!isEditing}
+                        value={selectedAgent.role || ""}  // Ensure it reflects the boolean state as 'true' or 'false'
+                        onChange={(e) => handleInputChange(e, 'role')}
+                      >
+                        <option hidden>Select role</option>
+                        <option value="agent">agent</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    </div>
                   </div>
 
-                  {/* Password */}
+                  {/* Password Field */}
                   {isAdmin && (
                     isEditing && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 w-full">
 
-                        <div className="mb-4 w-full">
-                          <label className="block mb-1">Role</label>
-                          <select
-                            className="border p-2 w-full"
-                            value={selectedAgent.role}  // Ensure it reflects the boolean state as 'true' or 'false'
-                            onChange={(e) => handleInputChange(e, 'role')}
-                          >
-                            <option hidden>Select role</option>
-                            <option value="agent">agent</option>
-                            <option value="admin">admin</option>
-                          </select>
-                        </div>
-
-                        <div className="mb-4 w-full">
-                          <label className="block mb-1">Employment Status</label>
-                          <select
-                            className="border p-2 w-full"
-                            value={selectedAgent.isEmployed ? 'true' : 'false'}  // Ensure it reflects the boolean state as 'true' or 'false'
-                            onChange={handleIsActiveChange}
-                          >
-                            <option hidden>Select employment status</option>
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                          </select>
-                        </div>
-
-                        <div className="mb-4 w-full">
-                          <div className="flex relative group">
-                            <label className="block mb-2 mr-2">Password</label>
-                            <CircleHelp className="w-5 h-6" />
-                            <div className="hidden group-hover:block bg-gray-200 text-zinc-700 text-xs rounded-md p-2 ml-2 mb-4 flex flex-row">
-                              Put new password if you want to replace your current password, leave it empty if not.
+                        <div className="mb-4 w-full col-span-2 flex flex-row">
+                          <div className="w-full relative"> {/* Added 'relative' to this container */}
+                            <label className="block mb-2">Password</label>
+                            <div className="w-full">
+                              <input
+                                type={isPasswordVisible ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-2 border rounded-md"
+                              />
+                              <button
+                                type="button"
+                                onClick={togglePasswordVisibility}
+                                className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500 mt-4"
+                              >
+                                {isPasswordVisible ? (
+                                  <EyeOff className="w-5 h-5" />
+                                ) : (
+                                  <Eye className="w-5 h-5" />
+                                )}
+                              </button>
                             </div>
                           </div>
 
-                          <div className="relative">
-                            <input
-                              type={isPasswordVisible ? 'text' : 'password'}
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              className="w-full p-2 border rounded-md"
-                            />
-                            <button
-                              type="button"
-                              onClick={togglePasswordVisibility}
-                              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
-                            >
-                              {isPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger className="bg-white text-zinc-900 border h-11 w-[33%] font-medium rounded-md text-sm ml-4 self-end">
+                              Reset Password
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Reset Password</AlertDialogTitle>
+                              </AlertDialogHeader>
+                              Are you sure you want to reset the password of {selectedAgent.firstName} {selectedAgent.lastName}
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleResetPassword}>Reset</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
 
-                        <div className="mb-6 w-full">
-                          <label className="block mb-2">Confirm Password</label>
-                          <div className="relative">
-                            <input
-                              type={isConfirmPasswordVisible ? 'text' : 'password'}
-                              value={confirmPassword}
-                              onChange={(e) => setConfirmPassword(e.target.value)}
-                              className="w-full p-2 border rounded-md"
-                            />
-                            <button
-                              type="button"
-                              onClick={toggleConfirmPasswordVisibility}
-                              className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
-                            >
-                              {isConfirmPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
-                          </div>
-                          {passwordMismatch && <p className="text-red-500 text-sm mt-2">Passwords do not match!</p>}
-                        </div>
                       </div>
                     )
                   )}
@@ -532,7 +623,7 @@ export default function AgentListPage() {
                         </AlertDialog>
 
                         <AlertDialog>
-                          <AlertDialogTrigger className="bg-white text-zinc-900 border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
+                          <AlertDialogTrigger className="bg-white text-zinc-900 border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm">
                             Save Changes
                           </AlertDialogTrigger>
                           <AlertDialogContent>

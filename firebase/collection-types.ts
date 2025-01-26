@@ -15,6 +15,8 @@ export interface EventData {
   package: string; 
   layout: string;
   notes: string;
+  hqt: string;
+  aop: string;
   isArchive: boolean;
 }
 
@@ -22,7 +24,9 @@ export interface ArsenalData {
   id?: string; 
   dateAdded: Timestamp;
   name: string; 
-  type: string; 
+  type: string;
+  serial: string;
+  details: string;
 }
 
 export interface AgentData {
@@ -30,10 +34,14 @@ export interface AgentData {
   avatar: string; 
   email: string;
   firstName: string;
-  isActive: boolean;
-  isEmployed: boolean;
   lastName: string;
-  password: string; 
   position: string; 
+  address: string;
+  birthday: string;
+  contactNumber: string;
+  dateHired: string;
   role: string;
+  password: string; 
+  isNew: boolean;
+  isArchive: boolean;
 }
