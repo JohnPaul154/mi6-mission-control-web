@@ -224,23 +224,37 @@ export default function MissionControlPage() {
                 </AlertDialogHeader>
 
                 {/* Event Form */}
-                <form onSubmit={handleAddEvent}>
-                  <label className="block mb-4">Event Name</label>
-                  <input
-                    type="text"
-                    value={newEventName}
-                    onChange={(e) => setNewEventName(e.target.value)}
-                    className="w-full p-2 border rounded-md mb-4"
-                    placeholder="Enter event name"
-                    required
-                  />
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction type="submit">Add</AlertDialogAction>
-                  </AlertDialogFooter>
-                </form>
+  {/* Event Form */}
+<form onSubmit={handleAddEvent}>
+       <label className="block mb-4">Event Name</label>
+  
+      <input
+        type="text"
+         list="eventOptions" // Links to the datalist
+         value={newEventName}
+           onChange={(e) => setNewEventName(e.target.value)}
+             className="w-full p-2 border rounded-md mb-4"
+              placeholder="Enter or select an event name"
+                required
+           />
+  
+           
+         <datalist id="eventOptions">
+           <option value="Wedding" />
+             <option value="Chirstmass Party" />
+              <option value="Debut" />
+              <option value="Birthday" />
+              <option value="Other" />
+               </datalist>
+
+  <AlertDialogFooter>
+    <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
+      Cancel
+    </AlertDialogCancel>
+    <AlertDialogAction type="submit">Add</AlertDialogAction>
+  </AlertDialogFooter>
+</form>
+
               </AlertDialogContent>
             </AlertDialog>
           </CardFooter>
