@@ -241,7 +241,7 @@ export default function MissionControlPage() {
            
          <datalist id="eventOptions">
            <option value="Wedding" />
-             <option value="Chirstmass Party" />
+             <option value="Chirstmas Party" />
               <option value="Debut" />
               <option value="Birthday" />
               <option value="Other" />
