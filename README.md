@@ -12,10 +12,11 @@
   - Can edit details but not pictures
 
 ## Things to do
-
+ 
 - Mission Control 
   - Handle adding agent
   - Handle adding arsenal
+  - Add Save/OK button 
 - MI6: Chat Room
   - Presence system
   - Real-time chat system
@@ -27,6 +28,8 @@
 - Archive
 - Profile
   - Upload picture
+- Mobile App
+  - Realtime notification
 
 # Next JS
 
