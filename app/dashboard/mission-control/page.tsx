@@ -223,7 +223,6 @@ export default function MissionControlPage() {
                   <AlertDialogTitle>Add New Event</AlertDialogTitle>
                 </AlertDialogHeader>
 
-                {/* Event Form */}
   {/* Event Form */}
 <form onSubmit={handleAddEvent}>
        <label className="block mb-4">Event Name</label>
@@ -237,14 +236,13 @@ export default function MissionControlPage() {
               placeholder="Enter or select an event name"
                 required
            />
-  
            
          <datalist id="eventOptions">
            <option value="Wedding" />
              <option value="Christmas Party" />
               <option value="Debut" />
               <option value="Birthday" />
-                             </datalist>
+              </datalist>
 
   <AlertDialogFooter>
     <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>

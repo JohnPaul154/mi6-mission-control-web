@@ -433,35 +433,113 @@ export default function EventPage() {
                   />
                 </div>
 
-                {/* Layout Field */}
-                <div className="md:order-3">
-                  <label className="block mb-1">Layout</label>
+     {/* Layout Field */}
+<div className="md:order-3">
+  <label className="block mb-1">Layout</label>
+  {isEditable ? (
+    <select
+      className="border p-2 w-full"
+      value={event.layout || ""}
+      disabled={!isEditable}
+      onChange={(e) => handleInputChange(e, 'layout')}
+    >
+      <option hidden>Select a layout</option>
+      <option value="4R Thin Frame">4R Thin Frame</option>
+      <option value="4R Standard">4R Standard</option>
+      <option value="4R Landscape">4R Landscape</option>
+      <option value="Film Strip">Film Strip</option>
+      <option value="Dedication">Dedication</option>
+      <option value="2 Shot LandScape">2 Shot LandScape</option>
+      <option value="Polaroid Landscape">Polaroid Landscape</option>
+      <option value="Other">Other</option>
+    </select>
+  ) : (
+    <input
+      type="text"
+      className="border p-2 w-full"
+      value={event.layout}
+      disabled={!isEditable}
+    />
+  )}
+  {event.layout === "Other" && isEditable && (
+    <input
+      type="text"
+      className="border p-2 w-full mt-2"
+      value={event.customLayout || ""}
+      onChange={(e) => handleInputChange(e, 'customLayout')}
+      placeholder="Enter custom layout"
+    />
+  )}
+</div>
+            {/* Number of SD Card*/}
+          <div className="md:order-4">
+                  <label className="block mb-1">Number of SD Card</label>
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.layout || ""}
-                      disabled={!isEditable}
-                      onChange={(e) => handleInputChange(e, 'layout')}
+                      value={event.xxx1 || ""}
+                      onChange={(e) => handleInputChange(e, 'xxx1')}
                     >
-                      <option hidden>Select a layout</option>
-                      <option value="4R Thin Frame">4R Thin Frame</option>
-                      <option value="4R Standard">4R Standard</option>
-                      <option value="4R Landscape">4R Landscape</option>
-                      <option value="Film Strip">Film Strip</option>
-                      <option value="Dedication">Dedication</option>
-                      <option value="2 Shot LandScape">2 Shot LandScape</option>
-                      <option value="Polaroid Landscape">Polaroid Landscape</option>
-                      <option value="Polaroid portait">Polaroid portait</option>
+                      <option hidden>Choose number of SD CARD</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                      
                     </select>
                   ) : (
                     <input
                       type="text"
                       className="border p-2 w-full"
-                      value={event.layout}
+                      value={event.xxx1}
                       disabled={!isEditable}
                     />
                   )}
                 </div>
+
+                     {/*Number of Battery*/}
+          <div className="md:order-4">
+                  <label className="block mb-1">Number of Battery</label>
+                  {isEditable ? (
+                    <select
+                      className="border p-2 w-full "
+                      value={event.xxx || ""}
+                      onChange={(e) => handleInputChange(e, 'xxx')}
+                    >
+                      <option hidden>Choose number of Battery</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                      
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      className="border p-2 w-full"
+                      value={event.package}
+                      disabled={!isEditable}
+                    />
+                  )}
+                </div>
+
+
+
+
+
+
 
                 {/* Package Field */}
                 <div className="md:order-4">
@@ -499,6 +577,7 @@ export default function EventPage() {
                     placeholder="Enter HQT"
                   />
                 </div>
+
 
                 {/* AOP Field */}
                 <div className="md:order-5">
