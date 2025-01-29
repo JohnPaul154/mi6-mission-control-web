@@ -241,11 +241,10 @@ export default function MissionControlPage() {
            
          <datalist id="eventOptions">
            <option value="Wedding" />
-             <option value="Chirstmas Party" />
+             <option value="Christmas Party" />
               <option value="Debut" />
               <option value="Birthday" />
-              <option value="Other" />
-               </datalist>
+                             </datalist>
 
   <AlertDialogFooter>
     <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
