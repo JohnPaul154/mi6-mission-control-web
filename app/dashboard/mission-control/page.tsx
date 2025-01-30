@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventCard } from "@/components/event-card";
 import { Plus } from "lucide-react";
-import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference, query, where, doc } from "firebase/firestore";
+import { collection, getDoc, getDocs, addDoc, Timestamp, DocumentReference, query, where, doc } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types";
 import {
@@ -26,21 +26,22 @@ export default function MissionControlPage() {
 
   const router = useRouter();
 
-  const { session } = useSession()
+  const { session } = useSession();
   const isAdmin = session!.role === "admin";
 
   const [events, setEvents] = useState<EventData[]>([]); // State for events
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // State for the AlertDialog visibility
   const [newEventName, setNewEventName] = useState("");
+  const [eventDate, setEventDate] = useState<string>("");
+  const [error, setError] = useState<string | null>(null); // State for form errors
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const [trigger, setTrigger] = useState(false);
-
-  const triggerUpdate = () => {
-    setTrigger((prev) => !prev); // Toggle the state to trigger parent logic
-  };
-
+  const eventOptions = ["Wedding", "Christmas Party", "Debut", "Birthday"];
   const statuses: ("good" | "alert" | "critical")[] = ["good", "alert", "critical"];
   const randomStatus: "good" | "alert" | "critical" = statuses[Math.floor(Math.random() * statuses.length)];
+
+  const triggerUpdate = () => {
+    setIsDialogOpen(!isDialogOpen); // Toggle dialog state
+  };
 
   // Fetch the event data and ensure the references are resolved before rendering
   const fetchEvents = async () => {
@@ -49,8 +50,6 @@ export default function MissionControlPage() {
         collection(firestoreDB, "events"),
         where("isArchive", "==", false)
       );
-
-      console.log(session!.id)
 
       // Fetch only those assigned to the user if not admin
       if (session!.role !== "admin") {
@@ -111,6 +110,8 @@ export default function MissionControlPage() {
           location: data.location || "",
           package: data.package || "",
           layout: data.layout || "",
+          sdCardCount: data.sdCardCount || 0,
+          batteryCount: data.batteryCount || 0,
           notes: data.notes || "",
           hqt: data.hqt || "",
           aop: data.aop || "",
@@ -132,16 +133,25 @@ export default function MissionControlPage() {
 
   useEffect(() => {
     fetchEvents();
-  }, [trigger]);
+  }, [isDialogOpen]);
 
   // Handle adding a new event
-  const handleAddEvent = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleAddEvent = async () => {
+    // Check if both fields are filled
+    if (!newEventName || !eventDate) {
+      setError("Both event name and date are required.");
+      return;
+    }
+
+    // Clear any previous errors
+    setEventDate("");
+    setNewEventName("");
+    setError(null);
 
     // Creating the event data with only eventName and placeholders for other fields
     const newEvent = {
-      eventName: newEventName || "Untitled Event",
-      location: "",
+      eventName: newEventName,
+      location: eventDate,
       agents: [],
       arsenal: [],
       contactNumber: "",
@@ -149,6 +159,8 @@ export default function MissionControlPage() {
       package: "",
       layout: "",
       eventDate: "",
+      sdCardCount: 0,
+      batteryCount: 0,
       hqt: "",
       aop: "",
       dateAdded: Timestamp.now(),
@@ -171,12 +183,17 @@ export default function MissionControlPage() {
       });
 
       // Redirect to the newly created event's page
-      router.push(`/dashboard/mission-control/${newEventId}`);
+      router.push(`/dashboard/mission-control/${newEventId}?edit=true`);
 
       fetchEvents();
     } catch (error) {
       console.error("Error adding event:", error);
     }
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDate = e.target.value;
+    setEventDate(newDate); // Update the eventDate state with the formatted string
   };
 
   return (
@@ -213,7 +230,7 @@ export default function MissionControlPage() {
         {/* Trigger for opening the AlertDialog (only for admin) */}
         {isAdmin && (
           <CardFooter className="flex-none flex justify-end">
-            <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <AlertDialog>
               <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
                 <Plus className="w-4 h-4" />Add Event
               </AlertDialogTrigger>
@@ -223,35 +240,46 @@ export default function MissionControlPage() {
                   <AlertDialogTitle>Add New Event</AlertDialogTitle>
                 </AlertDialogHeader>
 
-  {/* Event Form */}
-<form onSubmit={handleAddEvent}>
-       <label className="block mb-4">Event Name</label>
-  
-      <input
-        type="text"
-         list="eventOptions" // Links to the datalist
-         value={newEventName}
-           onChange={(e) => setNewEventName(e.target.value)}
-             className="w-full p-2 border rounded-md mb-4"
-              placeholder="Enter or select an event name"
-                required
-           />
-           
-         <datalist id="eventOptions">
-           <option value="Wedding" />
-             <option value="Christmas Party" />
-              <option value="Debut" />
-              <option value="Birthday" />
-              </datalist>
+                {/* Event Name Input */}
+                <div className="relative">
+                  <label className="block mb-2">Event Name</label>
+                  <input
+                    type="text"
+                    list="eventOptions"
+                    value={newEventName}
+                    onChange={(e) => setNewEventName(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                    placeholder="Enter or select an event name"
+                    required
+                  />
+                  <datalist id="eventOptions">
+                    {eventOptions
+                      .filter((option) => option.toLowerCase().includes(newEventName.toLowerCase()))
+                      .map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                  </datalist>
+                </div>
 
-  <AlertDialogFooter>
-    <AlertDialogCancel onClick={() => setIsDialogOpen(false)}>
-      Cancel
-    </AlertDialogCancel>
-    <AlertDialogAction type="submit">Add</AlertDialogAction>
-  </AlertDialogFooter>
-</form>
+                {/* Event Date Input */}
+                <div className="">
+                  <label className="block mb-2">Event Date</label>
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={handleDateChange}
+                    className="w-full p-2 border rounded-md"
+                    required
+                  />
+                </div>
 
+                {/* Error message if fields are empty */}
+                {error && <div className="text-red-500">{error}</div>}
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => {setEventDate("");setNewEventName("");setError("")}}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleAddEvent} disabled={!newEventName || !eventDate}>Create Event</AlertDialogAction>
+                </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           </CardFooter>

@@ -14,6 +14,8 @@ export interface EventData {
   location: string; 
   package: string; 
   layout: string;
+  sdCardCount: number;
+  batteryCount: number;
   notes: string;
   hqt: string;
   aop: string;

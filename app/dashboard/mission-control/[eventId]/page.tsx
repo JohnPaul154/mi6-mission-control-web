@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { set, ref, remove } from "firebase/database";
@@ -29,6 +29,7 @@ export default function EventPage() {
   // Parameters (in the url)
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { eventId } = params as { eventId: string };
 
   // Global states
@@ -37,7 +38,7 @@ export default function EventPage() {
 
   // Detail states
   const [eventDate, setEventDate] = useState<string>("");
-  const [isEditable, setIsEditable] = useState(false);
+  const [isEditable, setIsEditable] = useState(searchParams.get("edit") === "true");
 
   // Agent states
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
@@ -116,12 +117,13 @@ export default function EventPage() {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    value: string,
     field: string
   ) => {
+
     setEvent({
       ...event,
-      [field]: e.target.value, // Change value based on each textbox
+      [field]: (field === 'sdCardCount' || field === 'batteryCount') ? parseInt(value) || 0 : value,
     });
   };
 
@@ -149,16 +151,30 @@ export default function EventPage() {
           eventDate: event.eventDate || "",
           hqt: event.hqt || "",
           aop: event.aop || "",
+          sdCardCount: event.sdCardCount || 0,
+          batteryCount: event.batteryCount || 0,
           notes: event.notes || "",
+          agents: event.agents || [],
+          arsenal: event.arsenal || [],
         });
+        const statusRef = ref(realtimeDB, `chats/${event.id}/info/name`);
+        set(statusRef, event.eventName);
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
+        router.push("/dashboard/mission-control");
       } catch (error) {
         console.error("Error saving event data:", error);
       }
     }
   };
 
+  const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const value = e.target.value.replace(/\D/g, ''); // Remove non-digit characters
+    if (value.length <= 11) {
+      handleInputChange(value, field); // Update state if length is <= 11
+    }
+  };
+  
   const handleCancelChanges = () => {
     setShouldRefetch(!shouldRefetch)
     setIsEditable(false);
@@ -200,8 +216,8 @@ export default function EventPage() {
         ...doc.data(),
       })) as ArsenalData[];
 
-      // Filter to extract unassigned agents
-      const eventArsenalIds = event?.arsenal.map((agentRef: DocumentReference) => agentRef.id) || [];
+      // Filter to extract unassigned arsenals
+      const eventArsenalIds = event?.arsenal.map((arsenalRef: DocumentReference) => arsenalRef.id) || [];
       const filteredArsenal = arsenal.filter(arsenal => !eventArsenalIds.includes(arsenal.id || ""));
 
       // Further filter the arsenal based on their types
@@ -210,6 +226,7 @@ export default function EventPage() {
       const printers = filteredArsenal.filter(arsenal => arsenal.type === "printer");
 
       // Assign the filtered data to the respective state variables
+      setSelectedType(null);
       setAvailableCamera(cameras);
       setAvailableLaptop(laptops);
       setAvailablePrinter(printers);
@@ -237,11 +254,15 @@ export default function EventPage() {
       // Update the Firestore event document after state update
       if (event && event?.id) {
         try {
-          const docRef = doc(firestoreDB, "events", event.id);
-          await updateDoc(docRef, {
-            agents: [...(event?.agents || []), agentRef],
+          setEvent((prevEvent) => {
+            if (!prevEvent) return null; // Ensure event is not null
+        
+            return {
+              ...prevEvent,
+              agents: [...(prevEvent.agents || []), agentRef], // Ensure agents array exists
+              agentNames: [...(prevEvent.agentNames || []), `${selectedAgent.firstName} ${selectedAgent.lastName}`],
+            };
           });
-          setShouldRefetch(prev => !prev);
           console.log("Event updated with new agent!");
         } catch (error) {
           console.error("Error saving agent to event:", error);
@@ -250,9 +271,10 @@ export default function EventPage() {
     } else {
       console.error("Selected agent is invalid or missing ID");
     }
+    console.log(event.agents)
   };
 
-  const handleRemoveAgent = async (agentRefToRemove: DocumentReference) => {
+  const handleRemoveAgent = async (agentRefToRemove: DocumentReference, agentNameToRemove: string) => {
     if (!event || !event.id) {
       console.error("Event or event ID is missing.");
       return;
@@ -260,18 +282,15 @@ export default function EventPage() {
 
     try {
       // Filter out the document reference to be removed
-      const updatedAgents = (event.agents || []).filter(
-        (agentRef) => agentRef.path !== agentRefToRemove.path
-      );
-
-      // Update Firestore
-      const docRef = doc(firestoreDB, "events", event.id);
-      await updateDoc(docRef, {
-        agents: updatedAgents
+      setEvent((prevEvent) => {
+        if (!prevEvent) return null; // Ensure event is not null
+    
+        return {
+          ...prevEvent,
+          agents: prevEvent.agents?.filter((agent) => agent !== agentRefToRemove) || [],
+          agentNames: prevEvent.agentNames?.filter((agentName) => agentName !== agentNameToRemove) || [],
+        };
       });
-
-      setShouldRefetch(prev => !prev);
-
       console.log("Agent removed successfully!");
     } catch (error) {
       console.error("Error removing agent:", error);
@@ -301,12 +320,15 @@ export default function EventPage() {
       // Update the Firestore event document after state update
       if (event && event?.id) {
         try {
-          const docRef = doc(firestoreDB, "events", event.id);
-          await updateDoc(docRef, {
-            arsenal: [...(event?.arsenal || []), arsenalRef],
+          setEvent((prevEvent) => {
+            if (!prevEvent) return null; // Ensure event is not null
+        
+            return {
+              ...prevEvent,
+              arsenal: [...(prevEvent.arsenal || []), arsenalRef], // Ensure agents array exists
+              arsenalNames: [...(prevEvent.arsenalNames || []), selectedArsenal.name],
+            };
           });
-          setShouldRefetch(prev => !prev);
-          console.log("Event updated with new agent!");
         } catch (error) {
           console.error("Error saving arsenal to event:", error);
         }
@@ -314,28 +336,28 @@ export default function EventPage() {
     } else {
       console.error("Selected arsenal is invalid or missing ID");
     }
+    
+    setSelectedArsenal(null); 
   }
 
-  const handleRemoveArsenal = async (arsenalRefToRemove: DocumentReference) => {
+  const handleRemoveArsenal = async (arsenalRefToRemove: DocumentReference, arsenalNameToRemove: string) => {
     if (!event || !event.id) {
       console.error("Event or event ID is missing.");
       return;
     }
 
     try {
-      // Filter out the document reference to be removed
-      const updatedArsenal = (event.agents || []).filter(
-        (agentRef) => agentRef.path !== arsenalRefToRemove.path
-      );
+      setEvent((prevEvent) => {
+        if (!prevEvent) return null; // Ensure event is not null
 
-      // Update Firestore
-      const docRef = doc(firestoreDB, "events", event.id);
-      await updateDoc(docRef, {
-        arsenal: updatedArsenal
+        console.log(arsenalNameToRemove);
+    
+        return {
+          ...prevEvent,
+          arsenal: prevEvent.arsenal?.filter((arsenal) => arsenal !== arsenalRefToRemove) || [],
+          arsenalNames: prevEvent.arsenalNames?.filter((arsenalName) => arsenalName !== arsenalNameToRemove) || [],
+        };
       });
-
-      setShouldRefetch(prev => !prev);
-
       console.log("Arsenal removed successfully!");
     } catch (error) {
       console.error("Error removing arsenal:", error);
@@ -415,7 +437,7 @@ export default function EventPage() {
                     className="border p-2 w-full"
                     value={event.eventName}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'eventName')}
+                    onChange={(e) => handleInputChange(e.target.value, 'eventName')}
                     placeholder="Enter event name"
                   />
                 </div>
@@ -428,118 +450,49 @@ export default function EventPage() {
                     className="border p-2 w-full"
                     value={event.location}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'location')}
+                    onChange={(e) => handleInputChange(e.target.value, 'location')}
                     placeholder="Enter location"
                   />
                 </div>
 
-     {/* Layout Field */}
-<div className="md:order-3">
-  <label className="block mb-1">Layout</label>
-  {isEditable ? (
-    <select
-      className="border p-2 w-full"
-      value={event.layout || ""}
-      disabled={!isEditable}
-      onChange={(e) => handleInputChange(e, 'layout')}
-    >
-      <option hidden>Select a layout</option>
-      <option value="4R Thin Frame">4R Thin Frame</option>
-      <option value="4R Standard">4R Standard</option>
-      <option value="4R Landscape">4R Landscape</option>
-      <option value="Film Strip">Film Strip</option>
-      <option value="Dedication">Dedication</option>
-      <option value="2 Shot LandScape">2 Shot LandScape</option>
-      <option value="Polaroid Landscape">Polaroid Landscape</option>
-      <option value="Other">Other</option>
-    </select>
-  ) : (
-    <input
-      type="text"
-      className="border p-2 w-full"
-      value={event.layout}
-      disabled={!isEditable}
-    />
-  )}
-  {event.layout === "Other" && isEditable && (
-    <input
-      type="text"
-      className="border p-2 w-full mt-2"
-      value={event.customLayout || ""}
-      onChange={(e) => handleInputChange(e, 'customLayout')}
-      placeholder="Enter custom layout"
-    />
-  )}
-</div>
-            {/* Number of SD Card*/}
-          <div className="md:order-4">
-                  <label className="block mb-1">Number of SD Card</label>
+                {/* Layout Field */}
+                <div className="md:order-3">
+                  <label className="block mb-1">Layout</label>
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.xxx1 || ""}
-                      onChange={(e) => handleInputChange(e, 'xxx1')}
+                      value={event.layout || ""}
+                      disabled={!isEditable}
+                      onChange={(e) => handleInputChange(e.target.value, 'layout')}
                     >
-                      <option hidden>Choose number of SD CARD</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="6">6</option>
-                      <option value="7">7</option>
-                      <option value="8">8</option>
-                      <option value="9">9</option>
-                      <option value="10">10</option>
-                      
+                      <option hidden>Select a layout</option>
+                      <option value="4R Thin Frame">4R Thin Frame</option>
+                      <option value="4R Standard">4R Standard</option>
+                      <option value="4R Landscape">4R Landscape</option>
+                      <option value="Film Strip">Film Strip</option>
+                      <option value="Dedication">Dedication</option>
+                      <option value="2 Shot LandScape">2 Shot LandScape</option>
+                      <option value="Polaroid Landscape">Polaroid Landscape</option>
+                      <option value="Other">Other</option>
                     </select>
                   ) : (
                     <input
                       type="text"
                       className="border p-2 w-full"
-                      value={event.xxx1}
+                      value={event.layout}
                       disabled={!isEditable}
                     />
                   )}
-                </div>
-
-                     {/*Number of Battery*/}
-          <div className="md:order-4">
-                  <label className="block mb-1">Number of Battery</label>
-                  {isEditable ? (
-                    <select
-                      className="border p-2 w-full "
-                      value={event.xxx || ""}
-                      onChange={(e) => handleInputChange(e, 'xxx')}
-                    >
-                      <option hidden>Choose number of Battery</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="3">3</option>
-                      <option value="4">4</option>
-                      <option value="5">5</option>
-                      <option value="6">6</option>
-                      <option value="7">7</option>
-                      <option value="8">8</option>
-                      <option value="9">9</option>
-                      <option value="10">10</option>
-                      
-                    </select>
-                  ) : (
+                  {event.layout === "Other" && isEditable && (
                     <input
                       type="text"
-                      className="border p-2 w-full"
-                      value={event.package}
-                      disabled={!isEditable}
+                      className="border p-2 w-full mt-2"
+                      value={event.layout || ""}
+                      onChange={(e) => handleInputChange(e.target.value, 'customLayout')}
+                      placeholder="Enter custom layout"
                     />
                   )}
                 </div>
-
-
-
-
-
-
 
                 {/* Package Field */}
                 <div className="md:order-4">
@@ -548,7 +501,7 @@ export default function EventPage() {
                     <select
                       className="border p-2 w-full"
                       value={event.package || ""}
-                      onChange={(e) => handleInputChange(e, 'package')}
+                      onChange={(e) => handleInputChange(e.target.value, 'package')}
                     >
                       <option hidden>Select a package</option>
                       <option value="Agent Package">Agent Package</option>
@@ -565,29 +518,140 @@ export default function EventPage() {
                   )}
                 </div>
 
+                {/* Number of SD Card */}
+                <div className="md:order-4">
+                  <label className="block mb-1">Number of SD Card</label>
+                  {isEditable ? (
+                    <div className="flex items-center space-x-2">
+                      {/* Minus Button */}
+                      <button
+                        type="button"
+                        className="border p-2 rounded-md bg-white text-stone-900 font-bold hover:bg-gray-200 w-1/6"
+                        onClick={() => {
+                          if (event.sdCardCount > 0) {
+                            handleInputChange((event.sdCardCount - 1).toString(), 'sdCardCount');
+                          }
+                        }}
+                      >
+                        -
+                      </button>
+
+                      {/* Input Field */}
+                      <input
+                        type="text" // Use type="text" to avoid showing the number input controls
+                        className="border w-full p-2 text-center"
+                        value={event.sdCardCount?.toString() || ""} // Ensure the value is a string
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          // Allow deleting value (empty input) or valid numbers within range 0-10
+                          if (value === "" || (!isNaN(parseInt(value, 10)) && parseInt(value, 10) >= 0 && parseInt(value, 10) <= 10)) {
+                            handleInputChange(value, 'sdCardCount');
+                          }
+                        }}
+                      />
+
+                      {/* Plus Button */}
+                      <button
+                        type="button"
+                        className="border p-2 rounded-md bg-white text-stone-900 font-bold hover:bg-gray-200 w-1/6"
+                        onClick={() => {
+                          if (event.sdCardCount < 10) {
+                            handleInputChange((event.sdCardCount + 1).toString(), 'sdCardCount');
+                          }
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      className="border p-2 w-full"
+                      value={event.sdCardCount?.toString() || ""}
+                      disabled={!isEditable}
+                    />
+                  )}
+                </div>
+
+                {/*Number of Battery*/}
+                <div className="md:order-4">
+                  <label className="block mb-1">Number of Battery</label>
+                  {isEditable ? (
+                    <div className="flex items-center space-x-2">
+                      {/* Minus Button */}
+                      <button
+                        type="button"
+                        className="border p-2 rounded-md bg-white text-stone-900 font-bold hover:bg-gray-200 w-1/6"
+                        onClick={() => {
+                          if (event.batteryCount > 0) {
+                            handleInputChange((event.batteryCount - 1).toString(), 'batteryCount');
+                          }
+                        }}
+                      >
+                        -
+                      </button>
+
+                      {/* Input Field */}
+                      <input
+                        type="text" // Use type="text" to avoid showing the number input controls
+                        className="border w-full p-2 text-center"
+                        value={event.batteryCount?.toString() || ""} // Ensure the value is a string
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          // Allow deleting value (empty input) or valid numbers within range 0-10
+                          if (value === "" || (!isNaN(parseInt(value, 10)) && parseInt(value, 10) >= 0 && parseInt(value, 10) <= 10)) {
+                            handleInputChange(value, 'batteryCount');
+                          }
+                        }}
+                      />
+
+                      {/* Plus Button */}
+                      <button
+                        type="button"
+                        className="border p-2 rounded-md bg-white text-stone-900 font-bold hover:bg-gray-200 w-1/6"
+                        onClick={() => {
+                          if (event.batteryCount < 10) {
+                            handleInputChange((event.batteryCount + 1).toString(), 'batteryCount');
+                          }
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      className="border p-2 w-full"
+                      value={event.batteryCount?.toString() || ""}
+                      disabled={!isEditable}
+                    />
+                  )}
+                </div>
+
                 {/* HQT Field */}
                 <div className="md:order-5">
                   <label className="block mb-1">HQT</label>
                   <input
-                    type="text"
+                    type="time"
                     className="border p-2 w-full"
                     value={event.hqt}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'hqt')}
+                    onChange={(e) => handleInputChange(e.target.value, 'hqt')}
                     placeholder="Enter HQT"
                   />
                 </div>
-
 
                 {/* AOP Field */}
                 <div className="md:order-5">
                   <label className="block mb-1">AOP</label>
                   <input
-                    type="text"
+                    type="time"
                     className="border p-2 w-full"
                     value={event.aop}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'aop')}
+                    onChange={(e) => handleInputChange(e.target.value, 'aop')}
                     placeholder="Enter AOP"
                   />
                 </div>
@@ -598,9 +662,9 @@ export default function EventPage() {
                   <input
                     type="text"
                     className="border p-2 w-full"
-                    value={event.contactNumber}
+                    value={event.contactPerson}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'contactNumber')}
+                    onChange={(e) => handleInputChange(e.target.value, 'contactPerson')}
                     placeholder="Enter contact person"
                   />
                 </div>
@@ -611,9 +675,9 @@ export default function EventPage() {
                   <input
                     type="text"
                     className="border p-2 w-full"
-                    value={event.contactPerson}
+                    value={event.contactNumber}
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'contactPerson')}
+                    onChange={(e) => handleContactNumberChange(e, 'contactNumber')}
                     placeholder="Enter contact number"
                   />
                 </div>
@@ -637,7 +701,7 @@ export default function EventPage() {
                     className="border p-2 w-full h-full max-h-52"
                     value={event.notes} // Convert to 'YYYY-MM-DD' format
                     disabled={!isEditable}
-                    onChange={(e) => handleInputChange(e, 'notes')}
+                    onChange={(e) => handleInputChange(e.target.value, 'notes')}
                   ></textarea>
                 </div>
               </div>
@@ -655,7 +719,7 @@ export default function EventPage() {
                   <AlertDialogTrigger asChild>
                     <button
                       onClick={fetchAllAvailableAgents}
-                      className="text-white pl-4"
+                      className={`text-white pl-4 ${isEditable ? "" : "hidden"}`}
                     >
                       <Plus />
                     </button>
@@ -691,10 +755,10 @@ export default function EventPage() {
                     event.agents.map((agentRef, index) => (
                       <div key={agentRef.id}>
                         <div className="flex justify-between items-center">
-                          <p>{event.agentNames![index] || "Unkown Agent"}</p>
+                          <p>{event.agentNames![index] || "Unknown Agent"}</p>
                           <AlertDialog>
                             <AlertDialogTrigger className="text-red-500">
-                              <X/>
+                              <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -703,7 +767,7 @@ export default function EventPage() {
                               Are you sure you want to remove this agent from this event?
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveAgent(agentRef)}>Remove</AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleRemoveAgent(agentRef, event.agentNames![index])}>Remove</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
@@ -729,7 +793,7 @@ export default function EventPage() {
                   <AlertDialogTrigger asChild>
                     <button
                       onClick={fetchAllAvailableArsenal}
-                      className="text-white pl-4"
+                      className={`text-white pl-4 ${isEditable ? "" : "hidden"}`}
                     >
                       <Plus />
                     </button>
@@ -792,10 +856,10 @@ export default function EventPage() {
                     event.arsenal.map((arsenalRef, index) => (
                       <div key={arsenalRef.id}>
                         <div className="flex justify-between items-center">
-                          <p>{event.arsenalNames![index] || "Unkown Arsenal"}</p>
+                          <p>{event.arsenalNames![index] || "Unknown Arsenal"}</p>
                           <AlertDialog>
                             <AlertDialogTrigger className="text-red-500">
-                              <X/>
+                              <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
@@ -804,7 +868,7 @@ export default function EventPage() {
                               Are you sure you want to remove this arsenal from this event?
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveArsenal(arsenalRef)}>Remove</AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleRemoveArsenal(arsenalRef, event.arsenalNames![index])}>Remove</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
