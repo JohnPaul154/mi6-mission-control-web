@@ -141,7 +141,7 @@ export function EventCard({
   };
 
   return (
-    <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md">
+    <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md hover:bg-zinc-800 cursor-pointer">
       <CardContent className="w-full p-0">
         <div
           key={id}
