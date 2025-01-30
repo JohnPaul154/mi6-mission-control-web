@@ -3,8 +3,9 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession } from "@/contexts/SessionContext";
-import { firestoreDB } from '@/firebase/init-firebase';
+import { firestoreDB, realtimeDB } from '@/firebase/init-firebase';
 import { doc, getDoc } from "firebase/firestore";
+import { ref, onValue } from "firebase/database";
 
 import { 
   Home, 
@@ -31,6 +32,7 @@ import {
 
 import { ProfileCard } from "@/components/profile-card";
 
+
 // Menu items.
 const main = [
   { title: "Home", url: "/dashboard", icon: Home },
@@ -51,31 +53,32 @@ export function AppSidebar() {
   const currentPath = usePathname();
   const { session } = useSession();
   const [profile, setProfile] = useState({
-    name: "John Doe", 
-    position: "Software Engineer", 
-    profilePic: "https://github.com/shadcn.png",
+    name: "", 
+    position: "", 
+    avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp",
   });
 
   // Fetch user profile data from Firestore
   useEffect(() => {
     if (session?.id) {
-      const fetchProfileData = async () => {
-        const userDocRef = doc(firestoreDB, "agents", session.id);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
+      const userRef = ref(realtimeDB, `agents/${session.id}`); // Reference to /agents/{id}
+  
+      // Set up real-time listener
+      const unsubscribe = onValue(userRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
           setProfile({
-            name: `${userData.firstName} ${userData.lastName}`,
+            name: userData.name,
             position: userData.position,
-            profilePic: userData.profilePic || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp",
+            avatar: userData.avatar || "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp",
           });
         } else {
           console.log("No such user document!");
         }
-      };
-
-      fetchProfileData();
+      });
+  
+      // Cleanup the listener when component unmounts
+      return () => unsubscribe();
     }
   }, [session]);
 
@@ -83,7 +86,7 @@ export function AppSidebar() {
     <Sidebar collapsible="offcanvas">
       <SidebarHeader>
         <ProfileCard 
-          avatar={profile.profilePic} 
+          avatar={profile.avatar} 
           name={profile.name} 
           position={profile.position}
         />
