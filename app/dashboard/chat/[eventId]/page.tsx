@@ -24,6 +24,26 @@ import { useParams } from "next/navigation";
 import { doc, getDoc, Timestamp, DocumentReference } from "firebase/firestore";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types"
 
+const convertTo12HourFormat = (time24: string): string => {
+  if (time24 == "") {
+    return "";
+  }
+
+  const [hours, minutes] = time24.split(":").map(Number);
+  
+  console.log(hours, minutes)
+
+  if (isNaN(hours) || isNaN(minutes)) {
+    throw new Error("Invalid time format");
+  }
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;  // Convert hour to 12-hour format, handling midnight (00:00) and noon (12:00)
+  const formattedTime = `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
+  
+  return formattedTime;
+};
+
 export default function EventChatPage() {
   // Parameters (in the url)
   const params = useParams();
@@ -278,8 +298,12 @@ export default function EventChatPage() {
                 <p className="text-sm mt-2">Event Name: {event?.eventName}</p>
                 <p className="text-sm mt-2">Location: {event?.location}</p>
                 <p className="text-sm mt-2">Date: {event?.eventDate}</p>
-                <p className="text-sm mt-2">Package: {event?.package}</p>
                 <p className="text-sm mt-2">Layout: {event?.layout}</p>
+                <p className="text-sm mt-2">Package: {event?.package}</p>
+                <p className="text-sm mt-2">Number of SD Card: {event?.sdCardCount}</p>
+                <p className="text-sm mt-2">Number of Battery: {event?.batteryCount}</p>
+                <p className="text-sm mt-2">HQT: {convertTo12HourFormat(event?.hqt || "")}</p>
+                <p className="text-sm mt-2">AOP: {convertTo12HourFormat(event?.aop || "")}</p>
                 <p className="text-sm mt-2">Contact Person: {event?.contactPerson}</p>
                 <p className="text-sm mt-2">Contact Number: {event?.contactNumber}</p>
                 <p className="text-sm mt-2">Notes:</p>
