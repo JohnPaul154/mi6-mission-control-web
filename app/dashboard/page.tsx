@@ -13,35 +13,101 @@ import { useRouter } from "next/navigation";
 
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
 
 import { collection, getDocs, getDoc, addDoc, Timestamp, DocumentReference, query, where, doc } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types";
+import { MessageCircle, Info } from "lucide-react";
 
-import { set, ref } from "firebase/database";
+import { get, onValue, ref, set } from "firebase/database";
 import { useSession } from "@/contexts/SessionContext";
 
 
+
 interface ParsedEventData {
+  id: string;
   title: string;
   start: string;
   location: string;
+  agentNames: string[];
   end: string;
   allDay: boolean;
 }
 
 
-function renderEventContent(eventInfo:any) {
+// Functional Component for Event Content
+const RenderEventContent = ({ eventInfo }: { eventInfo: any }) => {
+  const id = eventInfo.event.id;
+  const [status, setStatus] = useState("");
+
+  let statusBgClass = "";
+
+  switch (status) {
+    case "good":
+      statusBgClass = "bg-green-600";
+      break;
+    case "alert":
+      statusBgClass = "bg-orange-600";
+      break;
+    case "critical":
+      statusBgClass = "bg-red-600";
+      break;
+  }
+
+  // Fetch status in real-time from Firebase
+  useEffect(() => {
+    const statusRef = ref(realtimeDB, `chats/${id}/info/status`);
+
+    // Listen for changes
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      const value = snapshot.val();
+      if (value) {
+        setStatus(value);
+      }
+    });
+
+    // Cleanup on unmount
+    return () => {
+      unsubscribe();
+    };
+  }, [id]);
+
+  const handleStatusChange = (newStatus: string) => {
+    const statusRef = ref(realtimeDB, `chats/${id}/info/status`);
+    set(statusRef, newStatus);
+    setStatus(newStatus);
+  };
+
   return (
-    <div>
-      <strong>{eventInfo.event.title}</strong>
-      <p>{eventInfo.event.location}</p>
+    <div className={`relative group p-2 m-1 rounded-md text-wrap ${statusBgClass}`}>
+      <strong>Event: {eventInfo.event.title}</strong>
+      <p>Location: {eventInfo.event.extendedProps.location}</p>
+      <p>Agents: {(eventInfo.event.extendedProps.agentNames || []).join(", ") || "No Agents Assigned"}</p>
+
+      {/* Buttons with Icons */}
+      <div className="flex mt-4 space-x-2">
+        {/* Chat Button */}
+        <a
+          href={`/dashboard/chat/${id}`}
+          className="flex items-center justify-center w-1/2 py-1 bg-white text-stone-900 rounded-md hover:bg-[#eeeeee] transition"
+        >
+          <MessageCircle className="w-5 h-5 mr-2" /> Chat
+        </a>
+
+        {/* More Info Button */}
+        <a
+          href={`/dashboard/mission-control/${id}`}
+          className="flex items-center justify-center w-1/2 py-1 bg-black text-white rounded-md hover:bg-stone-800 transition"
+        >
+          <Info className="w-5 h-5 mr-2" /> Info
+        </a>
+      </div>
     </div>
-  )
-}
+  );
+};
 
 export default function DashboardPage() {
-
   const router = useRouter();
 
   const { session } = useSession()
@@ -144,8 +210,10 @@ export default function DashboardPage() {
       // Only map and set parsedEvents after events are fetched
       if (events.length > 0) {
         const extractedEvents = events.map(event => ({
+          id: event.id,
           title: event.eventName,
           location: event.location,
+          agentNames: event.agentNames,
           start: event.eventDate,
         })) as ParsedEventData[];
   
@@ -158,11 +226,14 @@ export default function DashboardPage() {
     <div className="min-h-[80%] w-full p-6">
       <FullCalendar
         plugins={[dayGridPlugin]}
+        selectable={true}
         initialView='dayGridMonth'
         weekends={true}
         events={parsedEvents}
-        eventContent={renderEventContent}
-        height={"90vh"}
+        eventContent={(eventInfo) => <RenderEventContent eventInfo={eventInfo} />}
+        height={"95vh"}
+        eventBackgroundColor="#00000000"
+        eventBorderColor="#00000000"
       />
     </div>
   );
