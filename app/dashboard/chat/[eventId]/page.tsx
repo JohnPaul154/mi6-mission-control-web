@@ -45,6 +45,7 @@ export default function EventChatPage() {
   const [message, setMessage] = useState("");
   const [agents, setAgents] = useState<any[]>([])
   const [status, setStatus] = useState("");
+  const [notes, setNotes] = useState("");
 
   // Function that loads everytime you get to this screen
   useEffect(() => {
@@ -148,27 +149,45 @@ export default function EventChatPage() {
     fetchAgents();
   }, []);
 
-  // Fetch status realtime
+  // Fetch status and notes in realtime
   useEffect(() => {
     const statusRef = ref(realtimeDB, `chats/${eventId}/info/status`);
+    const notesRef = ref(realtimeDB, `chats/${eventId}/info/notes`);
 
-    // Listen for changes
-    const unsubscribe = onValue(statusRef, (snapshot) => {
+    // Listen for changes in both fields
+    const unsubscribeStatus = onValue(statusRef, (snapshot) => {
       const value = snapshot.val();
       if (value) {
         setStatus(value);
       }
     });
 
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+    const unsubscribeNotes = onValue(notesRef, (snapshot) => {
+      const value = snapshot.val();
+      if (value) {
+        setNotes(value);
+      }
+    });
 
+    return () => {
+      // Unsubscribe from both listeners when the component unmounts
+      unsubscribeStatus();
+      unsubscribeNotes();
+    };
+  }, [eventId]);
+
+  // Handle changing the status
   const handleStatusChange = (newStatus: string) => {
     const statusRef = ref(realtimeDB, `chats/${eventId}/info/status`);
     set(statusRef, newStatus);
-    setStatus(newStatus); // Optional: Update the state locally for immediate feedback
+    setStatus(newStatus);
+  };
+
+  // Handle changing the notes
+  const handleNotesChange = (newNotes: string) => {
+    const notesRef = ref(realtimeDB, `chats/${eventId}/info/notes`);
+    set(notesRef, newNotes);
+    setNotes(newNotes);
   };
 
   // Scroll to the bottom when new messages are added
@@ -239,6 +258,18 @@ export default function EventChatPage() {
                   </button>
                 </div>
               </div>
+
+              <div className="w-full mb-4 px-2">
+                <label>Notes: </label>
+                <textarea
+                    className="w-full p-2"
+                    value={notes || ''}
+                    onChange={(e) => handleNotesChange(e.target.value)}
+                  />
+              </div>
+
+                  
+              
 
               {/* Details */}
               <h2 className="text-2xl self-center font-semibold">Details</h2>
