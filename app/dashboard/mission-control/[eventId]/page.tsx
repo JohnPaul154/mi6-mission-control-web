@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
-import { set, ref, remove } from "firebase/database";
+import { set, ref, remove, get, getDatabase } from "firebase/database";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { sendNotification } from "@/lib/sendNotification";
+
 
 export default function EventPage() {
 
@@ -158,7 +160,8 @@ export default function EventPage() {
           arsenal: event.arsenal || [],
         });
         const statusRef = ref(realtimeDB, `chats/${event.id}/info/name`);
-        set(statusRef, event.eventName);
+        set(statusRef, event.eventName); 
+      
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
         router.push("/dashboard/mission-control");
@@ -167,7 +170,7 @@ export default function EventPage() {
       }
     }
   };
-
+  
   const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const value = e.target.value.replace(/\D/g, ''); // Remove non-digit characters
     if (value.length <= 11) {
@@ -263,6 +266,10 @@ export default function EventPage() {
               agentNames: [...(prevEvent.agentNames || []), `${selectedAgent.firstName} ${selectedAgent.lastName}`],
             };
           });
+          
+          // Push Notification
+          sendPushNotification(selectedAgent.id);
+
           console.log("Event updated with new agent!");
         } catch (error) {
           console.error("Error saving agent to event:", error);
@@ -364,6 +371,35 @@ export default function EventPage() {
     }
   }
 
+  // Push Notification
+  const sendPushNotification = async (agentId: string) => {
+    if (!agentId) {
+      console.error("Agent ID is required.");
+      return;
+    }
+  
+    try {
+      const agentTokenRef = ref(realtimeDB, `agents/${agentId}/token`);
+      const tokenSnapshot = await get(agentTokenRef);
+  
+      if (!tokenSnapshot.exists()) {
+        console.log(`No token found for agent with ID: ${agentId}`);
+        return;
+      }
+  
+      const agentToken = tokenSnapshot.val();
+  
+      // Send Push Notification (assuming you have a stored Expo push token)
+      await sendNotification(agentToken, event.eventName, `You are part of an event at ${event.location} on ${event.eventDate}.`);
+      
+      console.log(`Push notification sent to agent ${agentId}`);
+      
+      return { id: agentId, token: agentToken };
+    } catch (error) {
+      console.error(`Error sending push notification to agent ${agentId}:`, error);
+    }
+  };  
+  
   return (
     <div className="min-full flex p-4 flex-1 flex-col">
       {/* Header */}
