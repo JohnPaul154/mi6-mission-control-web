@@ -301,9 +301,9 @@ export default function AgentListPage() {
     <div className="min-full h-full flex p-4 flex-1 flex-col">
       <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Agent List</h1>
 
-      <Card className="flex flex-col w-full">
+      <Card className="flex flex-col w-full ">
         <CardContent className="flex p-6 h-full gap-6">
-          <ScrollArea className="min-w-[300px] max-w-[400px] rounded-md border">
+          <ScrollArea className="min-w-[300px] max-w-[400px] max-h-[100vh] rounded-md border">
             <div className="p-4">
               {/* Agent List */}
               {agents.map((agent) => (

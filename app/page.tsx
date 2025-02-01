@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSession } from "@/contexts/SessionContext";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
+import { CircleHelp, Eye, EyeOff } from 'lucide-react';
 
 // Firebase Imports
 import { 
@@ -32,6 +33,8 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  
 
   const { session, setSession } = useSession();
 
@@ -41,6 +44,11 @@ export default function Home() {
       router.push("/dashboard");
     }
   }, [session, router]);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prevState) => !prevState);
+  };
 
   // Function to handle login logic
   const handleLogin = async () => {
@@ -103,13 +111,22 @@ export default function Home() {
                 <label htmlFor="password" className="block text-sm font-medium">
                   Password
                 </label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                    placeholder='Enter your password'
+                  />
+                  <button
+                    type="button"
+                    onClick={togglePasswordVisibility}
+                    className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {isPasswordVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <Button type="button" onClick={handleLogin} className="w-full">

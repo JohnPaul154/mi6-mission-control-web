@@ -4,17 +4,17 @@ import React, { useState, useEffect, FormEvent } from 'react';
 
 // Firebase Import
 
-import { 
-  collection, 
-  query, 
-  where, 
+import {
+  collection,
+  query,
+  where,
   getDoc,
-  getDocs, 
-  addDoc, 
+  getDocs,
+  addDoc,
   updateDoc,
-  deleteDoc, 
-  doc, 
-  serverTimestamp 
+  deleteDoc,
+  doc,
+  serverTimestamp
 } from "firebase/firestore";
 
 import { firestoreDB } from '@/firebase/init-firebase';
@@ -61,8 +61,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import { useSession } from "@/contexts/SessionContext";
 
-import { 
-  Plus, 
+import {
+  Plus,
   Trash2,
   Edit,
   X,
@@ -104,38 +104,23 @@ const ItemCard: React.FC<{ item: Item }> = ({ item }) => {
   );
 };
 
-export const EquipmentTable: React.FC<{ 
-  equipment: ArsenalData[], 
-  onDelete: (id: string, type: string) => void, 
-  onEdit: (id: string, newName: string) => void 
+export const EquipmentTable: React.FC<{
+  equipment: ArsenalData[],
+  onDelete: (id: string, type: string) => void,
+  onEdit: (id: string, name: string, type: string, serial: string, details: string) => void
   isAdmin: boolean,
 }> = ({ equipment, onDelete, onEdit, isAdmin }) => {
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState<string>("");
+  const [editedType, setEditedType] = useState<string>("");
+  const [editedSerial, setEditedSerial] = useState<string>("");
+  const [editedDetails, setEditedDetails] = useState<string>("");
 
-  const handleEditClick = (item: ArsenalData) => {
-    setEditingItemId(item.id || "");
-    setEditedName(item.name);
-  };
-
-  const handleCancelClick = () => {
-    setEditingItemId(null);
-    setEditedName("");
-  };
-
-  const confirmCancel = () => {
-  };
-
-  const handleSaveClick = () => {
-    if (editingItemId && editedName) {
-      onEdit(editingItemId, editedName);
-      setEditingItemId(null);
-      setEditedName("");
-    }
-  };
-
-  const confirmSave = () => {
+  const handleEditArsenal = (id: string, name: string, type: string, serial: string, details: string) => {
+    onEdit(id, name, type, serial, details);
+    setEditingItemId(id || "");
+    setEditedName(name);
   };
 
   return (
@@ -150,92 +135,125 @@ export const EquipmentTable: React.FC<{
         {equipment.map((item) => (
           <TableRow key={item.id || ""}>
             <TableCell className="w-1/2 py-4">
-              
-              <ItemCard 
-                item = {item}
+
+              <ItemCard
+                item={item}
               />
-              
+
             </TableCell>
             {/* Edit|Delete arsenal (for admin only) */}
             {isAdmin && (
               <TableCell className="text-right">
                 <div className="flex justify-end space-x-2">
-                  {editingItemId === item.id || "" ? (
-                    <>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button
-                            className="p-2"
-                            onClick={confirmSave}
-                          >
-                            <Save className="w-5 h-5 text-white"/>
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Rename</AlertDialogTitle>
-                          </AlertDialogHeader>
-                          <p>Are you sure you want to rename to "{editedName}"?</p>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleSaveClick}>
-                              Save
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button
-                            className="p-2"
-                            onClick={confirmCancel}
-                          >
-                            <X className="w-5 h-5 text-white" />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Cancel</AlertDialogTitle>
-                          </AlertDialogHeader>
-                          <p>Are you sure you want to discard changes?</p>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleCancelClick}>
-                              Discard
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  ) : (
-                    <>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
                       <button
-                        className="p-2"
-                        onClick={() => handleEditClick(item)}
+                        className="p-2 justify-self-auto"
+                        onClick={() => {
+                          setEditedName(item.name);
+                          setEditedType(item.type);
+                          setEditedSerial(item.serial);
+                          setEditedDetails(item.details);
+                        }}
                       >
-                        <Edit className="w-5 h-5 text-white"/>
+                        <Edit className="w-5 h-5 text-white" />
                       </button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button className="p-2">
-                            <Trash2 className="w-5 h-5 text-red-500" />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                          </AlertDialogHeader>
-                          <p>Are you sure you want to delete "{item.name}"?</p>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onDelete(item.id || "", item.type)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </>
-                  )}
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Edit Arsenal</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <form
+                        onSubmit={(e: FormEvent<HTMLFormElement>) => {
+                          e.preventDefault();
+                          const formData = new FormData(e.currentTarget);
+                          const arsenalType = formData.get("arsenalType") as string;
+                          const arsenalName = formData.get("arsenalName") as string;
+                          const serial = formData.get("serial") as string;
+                          const details = formData.get("details") as string;
+                          handleEditArsenal(item.id!, arsenalName, arsenalType, serial, details);
+                        }}
+                      >
+                        <Label htmlFor="arsenalName" className="block mb-4">Name</Label>
+                        <input
+                          type="text"
+                          name="arsenalName"
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          id="arsenalName"
+                          className="w-full p-2 border rounded-md mb-4"
+                          placeholder="Enter arsenal name"
+                          required
+                        />
+
+                        <Label htmlFor="serial" className="block mb-4">Serial Number</Label>
+                        <input
+                          type="text"
+                          name="serial"
+                          value={editedSerial}
+                          onChange={(e) => setEditedSerial(e.target.value)}
+                          id="serial"
+                          className="w-full p-2 border rounded-md mb-4"
+                          placeholder="Enter serial number"
+                          required
+                        />
+
+                        <Label htmlFor="details" className="block mb-4">Details</Label>
+                        <textarea
+                          name="details"
+                          value={editedDetails}
+                          onChange={(e) => setEditedDetails(e.target.value)}
+                          id="details"
+                          className="w-full p-2 border rounded-md mb-4"
+                          placeholder="Enter details"
+                          required
+                        />
+                        <Label className="block mb-4">Type</Label>
+                        <RadioGroup name="arsenalType" defaultValue={item.type} className="mb-4">
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="camera" id="camera" />
+                            <Label htmlFor="camera">Camera</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="laptop" id="laptop" />
+                            <Label htmlFor="laptop">Laptop</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="printer" id="printer" />
+                            <Label htmlFor="printer">Printer</Label>
+                          </div>
+                        </RadioGroup>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction type="submit">Save</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </form>
+
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="p-2 justify-self-auto">
+                        <Trash2 className="w-5 h-5 text-red-500" />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+                      </AlertDialogHeader>
+                      <p>Are you sure you want to delete "{item.name}"?</p>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onDelete(item.id || "", item.type)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+
+
                 </div>
               </TableCell>
             )}
@@ -256,7 +274,7 @@ const ArsenalPage: React.FC = () => {
   const [cameraEquipment, setCameraEquipment] = useState<ArsenalData[]>([]);
   const [laptopEquipment, setLaptopEquipment] = useState<ArsenalData[]>([]);
   const [printerEquipment, setPrinterEquipment] = useState<ArsenalData[]>([]);
-  const [selectedTab, setSelectedTab] = useState<string>('camera'); 
+  const [selectedTab, setSelectedTab] = useState<string>('camera');
 
   // Fetch all equipments and filter them by type
   const fetchEquipments = async (
@@ -266,7 +284,7 @@ const ArsenalPage: React.FC = () => {
     try {
       const q = query(collection(firestoreDB, "arsenal"), where("type", "==", type));
       const querySnapshot = await getDocs(q);
-  
+
       // Process each document
       const equipment = await Promise.all(
         querySnapshot.docs.map(async (docSnapshot) => {
@@ -274,13 +292,13 @@ const ArsenalPage: React.FC = () => {
           return { id: docSnapshot.id, ...data } as ArsenalData;
         })
       );
-  
+
       setState(equipment);
     } catch (error) {
       console.error(`Error fetching ${type} equipment:`, error);
     }
   };
-  
+
   useEffect(() => {
     fetchEquipments("camera", setCameraEquipment);
     fetchEquipments("laptop", setLaptopEquipment);
@@ -298,21 +316,26 @@ const ArsenalPage: React.FC = () => {
       console.log("Document written with ID: ", docRef.id);
 
       // Refresh the equipment list after adding
-      fetchEquipments(type, type === "camera" 
-        ? setCameraEquipment 
-        : type === "laptop" 
-        ? setLaptopEquipment 
-        : setPrinterEquipment
+      fetchEquipments(type, type === "camera"
+        ? setCameraEquipment
+        : type === "laptop"
+          ? setLaptopEquipment
+          : setPrinterEquipment
       );
     } catch (e) {
       console.error("Error adding document: ", e);
     }
   };
 
-  const handleEditArsenal = async (id: string, newName: string) => {
+  const handleEditArsenal = async (id: string, name: string, type: string, serial: string, details: string) => {
     try {
       const docRef = doc(firestoreDB, "arsenal", id);
-      await updateDoc(docRef, { name: newName });
+      await updateDoc(docRef, {
+        name: name,
+        type: type,
+        serial: serial,
+        details: details
+      });
       console.log("Document updated with ID: ", id);
 
       var type = selectedTab
@@ -322,8 +345,8 @@ const ArsenalPage: React.FC = () => {
         type === "camera"
           ? setCameraEquipment
           : type === "laptop"
-          ? setLaptopEquipment
-          : setPrinterEquipment
+            ? setLaptopEquipment
+            : setPrinterEquipment
       );
     } catch (e) {
       console.error("Error updating document: ", e);
@@ -335,12 +358,12 @@ const ArsenalPage: React.FC = () => {
       await deleteDoc(doc(firestoreDB, "arsenal", id));
       console.log("Document deleted with ID: ", id);
 
-      fetchEquipments(type, 
-        type === "camera" 
-        ? setCameraEquipment 
-        : type === "laptop" 
-        ? setLaptopEquipment 
-        : setPrinterEquipment
+      fetchEquipments(type,
+        type === "camera"
+          ? setCameraEquipment
+          : type === "laptop"
+            ? setLaptopEquipment
+            : setPrinterEquipment
       );
     } catch (e) {
       console.error("Error deleting document: ", e);
@@ -355,7 +378,7 @@ const ArsenalPage: React.FC = () => {
         <CardContent className="flex-1 flex flex-col flex-1 p-6">
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="grid w-full">
             <div className='flex'>
-              
+
               {/* Type Selector */}
               <TabsList className="flex-1 grid grid-cols-3">
                 <TabsTrigger value="camera">Camera</TabsTrigger>
@@ -367,7 +390,7 @@ const ArsenalPage: React.FC = () => {
               {isAdmin && (
                 <AlertDialog>
                   <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
-                      <Plus className='h-4 w-4'/>Add Arsenal
+                    <Plus className='h-4 w-4' />Add Arsenal
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -439,13 +462,22 @@ const ArsenalPage: React.FC = () => {
 
             {/* Tables */}
             <TabsContent value="camera">
-              <EquipmentTable equipment={cameraEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
+              <EquipmentTable 
+                equipment={cameraEquipment} 
+                onDelete={handleDeleteArsenal} 
+                onEdit={(id:string, name:string, type:string, serial:string, details:string) => {
+                  handleEditArsenal(id, name, type, serial, details).catch((error) =>
+                    console.error("Error editing arsenal:", error)
+                  );
+                }} 
+                isAdmin={isAdmin} 
+              />
             </TabsContent>
             <TabsContent value="laptop">
-             <EquipmentTable equipment={laptopEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
+              <EquipmentTable equipment={laptopEquipment} onDelete={handleDeleteArsenal} onEdit={(id, name, type, serial, details) => handleEditArsenal(id, name, type, serial, details)} isAdmin={isAdmin} />
             </TabsContent>
             <TabsContent value="printer">
-              <EquipmentTable equipment={printerEquipment} onDelete={handleDeleteArsenal} onEdit={handleEditArsenal} isAdmin={isAdmin}/>
+              <EquipmentTable equipment={printerEquipment} onDelete={handleDeleteArsenal} onEdit={(id, name, type, serial, details) => handleEditArsenal(id, name, type, serial, details)} isAdmin={isAdmin} />
             </TabsContent>
           </Tabs>
         </CardContent>

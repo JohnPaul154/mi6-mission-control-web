@@ -203,7 +203,7 @@ export default function MissionControlPage() {
       <Card className="flex flex-col w-full h-full max-h-[96%]">
         <CardContent className="flex-1 flex p-6 gap-6 overflow-hidden">
           {/* Event List */}
-          <ScrollArea className="w-full max-h-[80vh] rounded-md border">
+          <ScrollArea className="w-full max-h-[85vh] rounded-md border">
             <div className="p-4 space-y-4 ">
               {events.length > 0 ? (
                 events.map((event) => (

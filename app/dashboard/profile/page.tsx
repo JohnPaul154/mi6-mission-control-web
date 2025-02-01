@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from '@/contexts/SessionContext';
-import { firestoreDB } from '@/firebase/init-firebase';
+import { firestoreDB, realtimeDB } from '@/firebase/init-firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { ref, update } from 'firebase/database';
 import { AgentData } from '@/firebase/collection-types'; // Assuming this is where AgentData is defined
 import { CircleHelp, Eye, EyeOff } from 'lucide-react';
 import {
@@ -32,6 +33,8 @@ export default function ProfilePage() {
   const [shouldRefetch, setShouldRefetch] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const [birthday, setBirthday] = useState("");
+  const [contactNumber, setContactNumber] = useState("")
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -44,6 +47,8 @@ export default function ProfilePage() {
         if (agentSnapshot.exists()) {
           const userData = agentSnapshot.data() as AgentData;
           setProfile(userData);
+          setBirthday(userData.birthday);
+          setContactNumber(userData.contactNumber);
         } else {
           console.error('No user found!');
         }
@@ -91,6 +96,14 @@ export default function ProfilePage() {
     }
   };
 
+  const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+    const value = e.target.value.replace(/\D/g, ''); // Remove non-digit characters
+    if (value.length <= 11) {
+      setContactNumber(value); 
+      handleInputChange(e, field as keyof AgentData);
+    }
+  };
+
   const handleCancelChanges = () => {
     setPasswordMismatch(false);
     setPassword('');
@@ -123,6 +136,14 @@ export default function ProfilePage() {
 
       await updateDoc(userDocRef, updateData);
 
+      const dataRef = ref(realtimeDB, `agents/${session.id}`)
+
+      update(dataRef, {
+        name: `${profile?.firstName} ${profile?.lastName}`,
+        position: profile?.position,
+        avatar: profile?.avatar,
+      })
+
       // Clear password fields
       setPassword('');
       setConfirmPassword('');
@@ -130,6 +151,18 @@ export default function ProfilePage() {
       console.error('Error updating profile:', error);
     }
   };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+      const newDate = e.target.value
+  
+      if (field === "birthday") {
+        setProfile({
+          ...profile!,
+          birthday: newDate
+        });
+        setBirthday(newDate);
+      }
+    };
 
   return (
     <div className="min-full h-full w-full flex p-4 flex-1 flex-col">
@@ -170,20 +203,113 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Profile Fields */}
-            {['firstName', 'lastName', 'email', 'position'].map((field) => (
-              <div key={field} className="mb-4 w-full">
-                <label className="block mb-2 capitalize">{field}</label>
-                <input
-                  type="text"
-                  value={profile ? (profile[field as keyof AgentData] as string) : ''}
-                  onChange={(e) => handleInputChange(e, field as keyof AgentData)}
-                  disabled={!isEditing || ['email', 'role', 'position'].includes(field)}
-                  className="w-full p-2 border rounded-md"
-                />
-              </div>
-            ))}
-          </div>
+            {/* First Name Field */}
+            <div>
+                      <label className="block mb-1">First Name</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={profile?.firstName || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'firstName')}
+                      />
+                    </div>
+
+                    {/* Last Name Field */}
+                    <div>
+                      <label className="block mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={profile?.lastName || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => handleInputChange(e, 'lastName')}
+                      />
+                    </div>
+
+                    {/* Email Field */}
+                    <div>
+                      <label className="block mb-1">Email</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={profile?.email || ""}
+                        disabled={true}
+                        onChange={(e) => handleInputChange(e, 'email')}
+                      />
+                    </div>
+
+                    {/* Position Field */}
+                    <div className="mb-4 w-full">
+                      <label className="block mb-1">Position</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={profile?.position || ""}
+                        onChange={(e) => handleInputChange(e, 'position')}
+                        disabled={true}
+                      />
+                    </div>
+
+                    {/* Birthday Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Birthday</label>
+                      <input
+                        type="date"
+                        className="border p-2 w-full"
+                        value={birthday || ""}
+                        disabled={!isEditing}
+                        onChange={(e) => { handleDateChange(e, "birthday") }}
+                      />
+                    </div>
+
+                    {/* Contact Number Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Contact Number</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        value={contactNumber}
+                        disabled={!isEditing}
+                        onChange={(e) => handleContactNumberChange(e, 'contactNumber')}
+                      />
+                    </div>
+
+                    {/* Date Hired Field */}
+                    <div className="md:order-8">
+                      <label className="block mb-1">Date Hired</label>
+                      <input
+                        type="date"
+                        className="border p-2 w-full"
+                        value={profile?.dateHired || ""}
+                        disabled={true}
+                      />
+                    </div>
+
+                    {/* Address Field */}
+                    <div className="mb-4 w-full col-span-2 ">
+                      <label className="block mb-2 capitalize">Address</label>
+                      <input
+                        type="text"
+                        value={profile?.address || ""}
+                        disabled={!isEditing}
+                        className="w-full p-2 border rounded-md"
+                        onChange={(e) => handleInputChange(e, 'address')}
+                      />
+                    </div>
+
+                    {/* Role Field */}
+                    <div className="mb-4 w-full md:order-8">
+                      <label className="block mb-1">Role</label>
+                      <input
+                        type="text"
+                        className="border p-2 w-full"
+                        disabled={true}
+                        value={profile?.role || ""}  // Ensure it reflects the boolean state as 'true' or 'false'
+                        onChange={(e) => handleInputChange(e, 'role')}
+                      />
+                    </div>
+                  </div>
 
           {/* Password */}
           {isEditing && (

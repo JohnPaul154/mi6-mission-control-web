@@ -177,7 +177,7 @@ export default function EventPage() {
       handleInputChange(value, field); // Update state if length is <= 11
     }
   };
-  
+
   const handleCancelChanges = () => {
     setShouldRefetch(!shouldRefetch)
     setIsEditable(false);
@@ -259,7 +259,7 @@ export default function EventPage() {
         try {
           setEvent((prevEvent) => {
             if (!prevEvent) return null; // Ensure event is not null
-        
+
             return {
               ...prevEvent,
               agents: [...(prevEvent.agents || []), agentRef], // Ensure agents array exists
@@ -291,7 +291,7 @@ export default function EventPage() {
       // Filter out the document reference to be removed
       setEvent((prevEvent) => {
         if (!prevEvent) return null; // Ensure event is not null
-    
+
         return {
           ...prevEvent,
           agents: prevEvent.agents?.filter((agent) => agent !== agentRefToRemove) || [],
@@ -329,7 +329,7 @@ export default function EventPage() {
         try {
           setEvent((prevEvent) => {
             if (!prevEvent) return null; // Ensure event is not null
-        
+
             return {
               ...prevEvent,
               arsenal: [...(prevEvent.arsenal || []), arsenalRef], // Ensure agents array exists
@@ -343,8 +343,8 @@ export default function EventPage() {
     } else {
       console.error("Selected arsenal is invalid or missing ID");
     }
-    
-    setSelectedArsenal(null); 
+
+    setSelectedArsenal(null);
   }
 
   const handleRemoveArsenal = async (arsenalRefToRemove: DocumentReference, arsenalNameToRemove: string) => {
@@ -358,7 +358,7 @@ export default function EventPage() {
         if (!prevEvent) return null; // Ensure event is not null
 
         console.log(arsenalNameToRemove);
-    
+
         return {
           ...prevEvent,
           arsenal: prevEvent.arsenal?.filter((arsenal) => arsenal !== arsenalRefToRemove) || [],
@@ -497,7 +497,11 @@ export default function EventPage() {
                   {isEditable ? (
                     <select
                       className="border p-2 w-full"
-                      value={event.layout || ""}
+                      value={
+                        ["4R Thin Frame", "4R Standard", "4R Landscape", "Film Strip", "Dedication", "2 Shot LandScape", "Polaroid Landscape"].includes(event.layout)
+                          ? event.layout
+                          : "Other"
+                      }
                       disabled={!isEditable}
                       onChange={(e) => handleInputChange(e.target.value, 'layout')}
                     >
@@ -519,12 +523,13 @@ export default function EventPage() {
                       disabled={!isEditable}
                     />
                   )}
-                  {event.layout === "Other" && isEditable && (
+
+                  {(!["4R Thin Frame", "4R Standard", "4R Landscape", "Film Strip", "Dedication", "2 Shot LandScape", "Polaroid Landscape"].includes(event.layout) || event.layout === "Other") && isEditable && (
                     <input
                       type="text"
                       className="border p-2 w-full mt-2"
-                      value={event.layout || ""}
-                      onChange={(e) => handleInputChange(e.target.value, 'customLayout')}
+                      value={event.layout !== "Other" ? event.layout : ""}
+                      onChange={(e) => handleInputChange(e.target.value, 'layout')}
                       placeholder="Enter custom layout"
                     />
                   )}
