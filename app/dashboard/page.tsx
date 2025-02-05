@@ -97,7 +97,7 @@ const RenderEventContent = ({ eventInfo }: { eventInfo: any }) => {
 
         {/* More Info Button */}
         <a
-          href={`/dashboard/mission-control/${id}`}
+          href={`/dashboard/events/${id}`}
           className="flex items-center justify-center w-1/2 py-1 bg-black text-white rounded-md hover:bg-stone-800 transition"
         >
           <Info className="w-5 h-5 mr-2" /> Info
@@ -196,7 +196,7 @@ export default function DashboardPage() {
         const resolvedEvents = await Promise.all(eventPromises);
   
         // Update state variables
-        setEvents(resolvedEvents);
+        setEvents(resolvedEvents as EventData[]);
       } catch (error) {
         console.error("Error fetching events:", error);
       }

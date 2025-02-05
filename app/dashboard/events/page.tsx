@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EventCard } from "@/components/event-card";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { collection, getDoc, getDocs, addDoc, Timestamp, DocumentReference, query, where, doc } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types";
@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 import { set, ref } from "firebase/database";
 import { useSession } from "@/contexts/SessionContext";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
-export default function MissionControlPage() {
+export default function EventsPage() {
 
   const router = useRouter();
 
@@ -34,11 +36,11 @@ export default function MissionControlPage() {
   const [eventDate, setEventDate] = useState<string>("");
   const [error, setError] = useState<string | null>(null); // State for form errors
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [refetch, setRefetch] = useState(true);
 
   const eventOptions = ["Wedding", "Christmas Party", "Debut", "Birthday"];
-  const statuses: ("good" | "alert" | "critical")[] = ["good", "alert", "critical"];
-  const randomStatus: "good" | "alert" | "critical" = statuses[Math.floor(Math.random() * statuses.length)];
-
+ 
   const triggerUpdate = () => {
     setIsDialogOpen(!isDialogOpen); // Toggle dialog state
   };
@@ -46,12 +48,12 @@ export default function MissionControlPage() {
   // Fetch the event data and ensure the references are resolved before rendering
   const fetchEvents = async () => {
     try {
-      const today = new Date().toLocaleDateString('en-CA')
+      console.log(new Date().toLocaleDateString());
 
+      // Initial query to fetch events (no client-side search filtering yet)
       let q = query(
         collection(firestoreDB, "events"),
-        where("isArchive", "==", false),
-        where("eventDate", "==", today)
+        where("isArchive", "==", false)
       );
 
       // Fetch only those assigned to the user if not admin
@@ -59,6 +61,7 @@ export default function MissionControlPage() {
         q = query(q, where("agents", "array-contains", doc(firestoreDB, "agents", session!.id)));
       }
 
+      // Fetch the events from Firestore without client-side filtering for now
       const querySnapshot = await getDocs(q);
       const eventsData: EventData[] = [];
 
@@ -66,7 +69,7 @@ export default function MissionControlPage() {
       const eventPromises = querySnapshot.docs.map(async (docSnapshot) => {
         const data = docSnapshot.data() as Partial<EventData>;
 
-        // Resolve agent references to their actual data (use IDs for rendering)
+        // Resolve agent references to their actual data
         const agentNames = await Promise.all(
           (data.agents || []).map(async (agentRef: DocumentReference) => {
             try {
@@ -109,7 +112,7 @@ export default function MissionControlPage() {
           contactPerson: data.contactPerson || "",
           dateAdded: data.dateAdded || new Timestamp(0, 0),
           eventDate: data.eventDate || "",
-          eventName: data.eventName || "Unamed Event",
+          eventName: data.eventName || "Unnamed Event",
           location: data.location || "",
           package: data.package || "",
           layout: data.layout || "",
@@ -122,21 +125,36 @@ export default function MissionControlPage() {
         };
       });
 
-      // Resolve all events and filter archived ones
+      // Resolve all events
       const resolvedEvents = await Promise.all(eventPromises);
 
-      // Update state variables
-      setEvents(resolvedEvents);
+      // Client-side filtering based on the search query
+      const filteredEvents = resolvedEvents.filter((event) => {
+        if (search && search.trim() !== "") {
+          // Make both eventName and search query lowercase for case-insensitive comparison
+          const lowerCaseSearch = search.trim().toLowerCase();
+          return event.eventName.toLowerCase().includes(lowerCaseSearch);
+        }
+        return true;  // Return all if there's no search query
+      });
 
-      console.log(resolvedEvents); // Debugging log for events
+      // Update the state with the filtered events
+      setEvents(filteredEvents);
+
+      console.log(filteredEvents); // Debugging log for filtered events
     } catch (error) {
       console.error("Error fetching events:", error);
     }
   };
 
+
   useEffect(() => {
     fetchEvents();
-  }, [isDialogOpen]);
+  }, [isDialogOpen, refetch]);
+
+  const searchEvent = () => {
+    setRefetch(!refetch);
+  };
 
   // Handle adding a new event
   const handleAddEvent = async () => {
@@ -204,9 +222,21 @@ export default function MissionControlPage() {
       <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Mission Control</h1>
 
       <Card className="flex flex-col w-full h-full max-h-[96%]">
+        <form className="flex gap-3 p-6 pb-0" onSubmit={(e) => { e.preventDefault(); searchEvent(); }}>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search for event..."
+            className="flex-1"
+          />
+          <Button type="submit">
+            <Search />
+          </Button>
+        </form>
+
         <CardContent className="flex-1 flex p-6 gap-6 overflow-hidden">
           {/* Event List */}
-          <ScrollArea className="w-full max-h-full rounded-md border">
+          <ScrollArea className="w-full max-h-[85vh] rounded-md border">
             <div className="p-4 space-y-4 ">
               {events.length > 0 ? (
                 events.map((event) => (
@@ -217,18 +247,76 @@ export default function MissionControlPage() {
                     eventName={event.eventName}
                     location={event.location || "Unknown Location"}
                     agents={event.agentNames || []}
-                    status={randomStatus}
+                    status={""}
                     role={session!.role}
                     isArchive={event.isArchive}
                     onUpdate={triggerUpdate}
                   />
                 ))
               ) : (
-                <p>No events today</p>
+                <p>No events available</p>
               )}
             </div>
           </ScrollArea>
         </CardContent>
+
+        {/* Trigger for opening the AlertDialog (only for admin) */}
+        {isAdmin && (
+          <CardFooter className="flex-none flex justify-end">
+            <AlertDialog>
+              <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border outline-white h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                <Plus className="w-4 h-4" />Add Event
+              </AlertDialogTrigger>
+
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Add New Event</AlertDialogTitle>
+                </AlertDialogHeader>
+
+                {/* Event Name Input */}
+                <div className="relative">
+                  <label className="block mb-2">Event Name</label>
+                  <input
+                    type="text"
+                    list="eventOptions"
+                    value={newEventName}
+                    onChange={(e) => setNewEventName(e.target.value)}
+                    className="w-full p-2 border rounded-md"
+                    placeholder="Enter or select an event name"
+                    required
+                  />
+                  <datalist id="eventOptions">
+                    {eventOptions
+                      .filter((option) => option.toLowerCase().includes(newEventName.toLowerCase()))
+                      .map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                  </datalist>
+                </div>
+
+                {/* Event Date Input */}
+                <div className="">
+                  <label className="block mb-2">Event Date</label>
+                  <input
+                    type="date"
+                    value={eventDate}
+                    onChange={handleDateChange}
+                    className="w-full p-2 border rounded-md"
+                    required
+                  />
+                </div>
+
+                {/* Error message if fields are empty */}
+                {error && <div className="text-red-500">{error}</div>}
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => { setEventDate(""); setNewEventName(""); setError("") }}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleAddEvent} disabled={!newEventName || !eventDate}>Create Event</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

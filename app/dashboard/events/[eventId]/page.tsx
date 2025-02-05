@@ -164,7 +164,7 @@ export default function EventPage() {
       
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
-        router.push("/dashboard/mission-control");
+        router.push("/dashboard/events");
       } catch (error) {
         console.error("Error saving event data:", error);
       }

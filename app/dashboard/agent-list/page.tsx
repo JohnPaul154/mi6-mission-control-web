@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProfileCard } from "@/components/profile-card";
-import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive } from "lucide-react"; // Import Plus icon from Lucide
+import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive, Search } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
 import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc } from "firebase/firestore";
@@ -17,6 +17,8 @@ import { get, ref, remove, set, update } from "firebase/database";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase"; // Make sure to import your firestore instance
 import { AgentData } from "@/firebase/collection-types";
 import { useSession } from "@/contexts/SessionContext";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type AgentDataMini = {
   id: string;
@@ -45,6 +47,7 @@ export default function AgentListPage() {
   const [agents, setAgents] = useState<AgentDataMini[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [shouldRefetch, setShouldRefetch] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Add state for new agent details
   const [firstName, setFirstName] = useState("");
@@ -114,11 +117,30 @@ export default function AgentListPage() {
   useEffect(() => {
     const fetchAgents = async () => {
       const agentsData = await getAllAgents();
-      setAgents(agentsData as AgentDataMini[]); // Setting the agents state after the data is fetched
+
+      const filteredAgents = agentsData.filter((agent: AgentDataMini) => {
+        if (search && search.trim() !== "") {
+          // Make both search query and each part of the fullName lowercase for case-insensitive comparison
+          const lowerCaseSearch = search.trim().toLowerCase();
+
+          // Split the fullName into individual parts (e.g. "John Michael Smith" becomes ["John", "Michael", "Smith"])
+          const nameParts = agent.name.split(" ").map(part => part.toLowerCase());
+
+          // Check if any part of the full name matches the search query
+          return nameParts.some(namePart => namePart.includes(lowerCaseSearch));
+        }
+        return true;  // Return all if there's no search query
+      });
+
+      setAgents(filteredAgents as AgentDataMini[]); // Setting the agents state after the data is fetched
     };
 
     fetchAgents();
   }, [shouldRefetch]);
+
+  const searchAgent = () => {
+    setShouldRefetch(!shouldRefetch)
+  }
 
   // Toggle password visibility
   const togglePasswordVisibility = () => {
@@ -230,7 +252,7 @@ export default function AgentListPage() {
       });
       setShouldRefetch(!shouldRefetch);
       fetchAgentDetails(selectedAgent!.id || "");
-      
+
     } catch (error) {
       console.error("Error deleting event:", error);
     }
@@ -297,360 +319,387 @@ export default function AgentListPage() {
     }
   };
 
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">
       <h1 className="text-3xl font-semibold mb-4 ml-4 max-h-[3%]">Agent List</h1>
 
       <Card className="flex flex-col w-full ">
-        <CardContent className="flex p-6 h-full gap-6">
-          <ScrollArea className="min-w-[300px] max-w-[400px] max-h-[100vh] rounded-md border">
-            <div className="p-4">
-              {/* Agent List */}
-              {agents.map((agent) => (
-                <div key={agent.id} className="cursor-pointer pt-2 pb-2" onClick={() => fetchAgentDetails(agent.id ?? 'default-id')}>
-                  <ProfileCard
-                    avatar={agent.avatar}
-                    name={agent.name}
-                    position={agent.position || "Unassigned"}
-                  />
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <div className="min-full h-full w-full flex flex-1 flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-3xl font-semibold">Agent File</h2>
-
-              {isAdmin && (
-                isEditing ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger className="flex items-center bg-red-500 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
-                      <Archive className="h-4 w-4" />Archive Agent
-                    </AlertDialogTrigger>
-
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Archive Agent</AlertDialogTitle>
-                      </AlertDialogHeader>
-                      <div className="py-2">
-                        <p>Are you sure you want to archive this agent?</p>
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction onClick={handleArchiveAgent}>
-                          Archive
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+        <CardContent className="flex h-full flex-col">
+          <form className="flex gap-3 py-6 pb-0" onSubmit={(e) => { e.preventDefault(); searchAgent(); }}>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search for agent..."
+              className="flex-1"
+            />
+            <Button type="submit">
+              <Search />
+            </Button>
+          </form>
+          <div className="flex py-6 h-full gap-6 ">
+            <ScrollArea className="min-w-[400px] min-h-[80vh] max-w-[400px] max-h-[100vh] rounded-md border">
+              <div className="p-4">
+                {/* Agent List */}
+                {agents.length === 0 ? (
+                  <div className="text-center">No agents found</div> // Message when no agents
                 ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border  h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
-                      <Plus className="h-4 w-4" />Add Agent
-                    </AlertDialogTrigger>
-
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Add New Agent</AlertDialogTitle>
-                      </AlertDialogHeader>
-                      <label className="block">First Name</label>
-                      <input
-                        type="text"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full p-2 border rounded-md"
-                        placeholder="Enter first name"
-                        required
+                  agents.map((agent) => (
+                    <div key={agent.id} className="cursor-pointer pt-2 pb-2" onClick={() => fetchAgentDetails(agent.id ?? 'default-id')}>
+                      <ProfileCard
+                        avatar={agent.avatar}
+                        name={agent.name}
+                        position={agent.position || "Unassigned"}
                       />
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
 
-                      <label className="block">Last Name</label>
-                      <input
-                        type="text"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        className="w-full p-2 border rounded-md"
-                        placeholder="Enter last name"
-                        required
-                      />
+            <div className="min-full h-full w-full flex flex-1 flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-3xl font-semibold">Agent File</h2>
 
-                      <label className="block">Email</label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="w-full p-2 border rounded-md"
-                        placeholder="Enter email"
-                        required
-                      />
+                {isAdmin && (
+                  isEditing ? (
+                    <AlertDialog>
+                      <AlertDialogTrigger className="flex items-center bg-red-500 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4">
+                        <Archive className="h-4 w-4" />Archive Agent
+                      </AlertDialogTrigger>
 
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction onClick={handleAddAgent}>
-                          Add Agent
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )
-              )}
-
-            </div>
-
-            {selectedAgent ? (
-              <Card className="w-full h-full flex flex-col">
-                <CardContent className="p-6 ">
-                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
-                    {/* Avatar (Profile Picture) */}
-                    <div className="sm:col-span-2 mb-6 flex flex-col items-center">
-                      <div
-                        onClick={() => {
-                          const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
-                          if (fileInput) {
-                            fileInput.click();
-                          }
-                        }}
-                        className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Archive Agent</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <div className="py-2">
+                          <p>Are you sure you want to archive this agent?</p>
+                        </div>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction onClick={handleArchiveAgent}>
+                            Archive
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger className="flex items-center bg-blue-200 text-zinc-900 border  h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm ml-4"
+                        onClick={() => { setFirstName(""); setLastName(""); setEmail("") }}
                       >
-                        <img
-                          src={
-                            profile?.avatar === ''
-                              ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
-                              : selectedAgent?.avatar
-                          }
-                          alt="selectedAgent"
-                          className="w-full h-full object-cover"
+                        <Plus className="h-4 w-4" />Add Agent
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Add New Agent</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <label className="block">First Name</label>
+                        <input
+                          type="text"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Enter first name"
+                          required
+                        />
+
+                        <label className="block">Last Name</label>
+                        <input
+                          type="text"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Enter last name"
+                          required
+                        />
+
+                        <label className="block">Email</label>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Enter email"
+                          required
+                        />
+                        {email && !isValidEmail(email) && (
+                          <p className="text-red-500 text-xs pt-0 mt-0">Please enter a valid email address.</p>
+                        )}
+
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>
+                            Cancel
+                          </AlertDialogCancel>
+                          <AlertDialogAction onClick={handleAddAgent} disabled={!(firstName && lastName && email && isValidEmail(email))}>
+                            Add Agent
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )
+                )}
+
+              </div>
+
+              {selectedAgent ? (
+                <Card className="w-full h-full flex flex-col">
+                  <CardContent className="p-6 ">
+                    <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
+                      {/* Avatar (Profile Picture) */}
+                      <div className="sm:col-span-2 mb-6 flex flex-col items-center">
+                        <div
+                          onClick={() => {
+                            const fileInput = document.getElementById('avatarInput') as HTMLInputElement | null;
+                            if (fileInput) {
+                              fileInput.click();
+                            }
+                          }}
+                          className="cursor-pointer w-40 h-40 mb-4 rounded-full overflow-hidden border-2 border-gray-300"
+                        >
+                          <img
+                            src={
+                              profile?.avatar === ''
+                                ? 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp'
+                                : selectedAgent?.avatar
+                            }
+                            alt="selectedAgent"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <input
+                          type="file"
+                          id="avatarInput"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleavatarChange}
                         />
                       </div>
-                      <input
-                        type="file"
-                        id="avatarInput"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleavatarChange}
-                      />
+
+                      {/* First Name Field */}
+                      <div>
+                        <label className="block mb-1">First Name</label>
+                        <input
+                          type="text"
+                          className="border p-2 w-full"
+                          value={selectedAgent.firstName || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => handleInputChange(e, 'firstName')}
+                        />
+                      </div>
+
+                      {/* Last Name Field */}
+                      <div>
+                        <label className="block mb-1">Last Name</label>
+                        <input
+                          type="text"
+                          className="border p-2 w-full"
+                          value={selectedAgent.lastName || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => handleInputChange(e, 'lastName')}
+                        />
+                      </div>
+
+                      {/* Email Field */}
+                      <div>
+                        <label className="block mb-1">Email</label>
+                        <input
+                          type="email"
+                          className="border p-2 w-full"
+                          value={selectedAgent.email || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => handleInputChange(e, 'email')}
+                        />
+                      </div>
+
+                      {/* Position Field */}
+                      <div className="mb-4 w-full">
+                        <label className="block mb-1">Position</label>
+                        <select
+                          className="border p-2 w-full"
+                          value={selectedAgent.position || ""}
+                          onChange={(e) => handleInputChange(e, 'position')}
+                          disabled={!isEditing}
+                        >
+                          <option hidden>Select position</option>
+                          <option value="Admin">Admin</option>
+                          <option value="Operator">Operator</option>
+                          <option value="Shooter">Shooter</option>
+                          <option value="Specialist">Specialist</option>
+                        </select>
+                      </div>
+
+                      {/* Birthday Field */}
+                      <div className="md:order-8">
+                        <label className="block mb-1">Birthday</label>
+                        <input
+                          type="date"
+                          className="border p-2 w-full"
+                          value={birthday || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => { handleDateChange(e, "birthday") }}
+                        />
+                      </div>
+
+                      {/* Contact Number Field */}
+                      <div className="md:order-8">
+                        <label className="block mb-1">Contact Number</label>
+                        <input
+                          type="text"
+                          className="border p-2 w-full"
+                          value={selectedAgent.contactNumber || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => handleInputChange(e, 'contactNumber')}
+                        />
+                      </div>
+
+                      {/* Date Hired Field */}
+                      <div className="md:order-8">
+                        <label className="block mb-1">Date Hired</label>
+                        <input
+                          type="date"
+                          className="border p-2 w-full"
+                          value={dateHired || ""}
+                          disabled={!isEditing}
+                          onChange={(e) => { handleDateChange(e, "dateHired") }}
+                        />
+                      </div>
+
+                      {/* Address Field */}
+                      <div className="mb-4 w-full col-span-2 ">
+                        <label className="block mb-2 capitalize">Address</label>
+                        <input
+                          type="text"
+                          value={selectedAgent.address || ""}
+                          disabled={!isEditing}
+                          className="w-full p-2 border rounded-md"
+                          onChange={(e) => handleInputChange(e, 'address')}
+                        />
+                      </div>
+
+                      {/* Role Field */}
+                      <div className="mb-4 w-full md:order-8">
+                        <label className="block mb-1">Role</label>
+                        <select
+                          className="border p-2 w-full"
+                          disabled={!isEditing}
+                          value={selectedAgent.role || ""}  // Ensure it reflects the boolean state as 'true' or 'false'
+                          onChange={(e) => handleInputChange(e, 'role')}
+                        >
+                          <option hidden>Select role</option>
+                          <option value="agent">agent</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </div>
                     </div>
 
-                    {/* First Name Field */}
-                    <div>
-                      <label className="block mb-1">First Name</label>
-                      <input
-                        type="text"
-                        className="border p-2 w-full"
-                        value={selectedAgent.firstName || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => handleInputChange(e, 'firstName')}
-                      />
-                    </div>
+                    {/* Password Field */}
+                    {isAdmin && (
+                      isEditing && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 w-full">
 
-                    {/* Last Name Field */}
-                    <div>
-                      <label className="block mb-1">Last Name</label>
-                      <input
-                        type="text"
-                        className="border p-2 w-full"
-                        value={selectedAgent.lastName || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => handleInputChange(e, 'lastName')}
-                      />
-                    </div>
-
-                    {/* Email Field */}
-                    <div>
-                      <label className="block mb-1">Email</label>
-                      <input
-                        type="text"
-                        className="border p-2 w-full"
-                        value={selectedAgent.email || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => handleInputChange(e, 'email')}
-                      />
-                    </div>
-
-                    {/* Position Field */}
-                    <div className="mb-4 w-full">
-                      <label className="block mb-1">Position</label>
-                      <select
-                        className="border p-2 w-full"
-                        value={selectedAgent.position || ""}
-                        onChange={(e) => handleInputChange(e, 'position')}
-                        disabled={!isEditing}
-                      >
-                        <option hidden>Select position</option>
-                        <option value="Admin">Admin</option>
-                        <option value="Operator">Operator</option>
-                        <option value="Shooter">Shooter</option>
-                        <option value="Specialist">Specialist</option>
-                      </select>
-                    </div>
-
-                    {/* Birthday Field */}
-                    <div className="md:order-8">
-                      <label className="block mb-1">Birthday</label>
-                      <input
-                        type="date"
-                        className="border p-2 w-full"
-                        value={birthday || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => { handleDateChange(e, "birthday") }}
-                      />
-                    </div>
-
-                    {/* Contact Number Field */}
-                    <div className="md:order-8">
-                      <label className="block mb-1">Contact Number</label>
-                      <input
-                        type="text"
-                        className="border p-2 w-full"
-                        value={selectedAgent.contactNumber || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => handleInputChange(e, 'contactNumber')}
-                      />
-                    </div>
-
-                    {/* Date Hired Field */}
-                    <div className="md:order-8">
-                      <label className="block mb-1">Date Hired</label>
-                      <input
-                        type="date"
-                        className="border p-2 w-full"
-                        value={dateHired || ""}
-                        disabled={!isEditing}
-                        onChange={(e) => { handleDateChange(e, "dateHired") }}
-                      />
-                    </div>
-
-                    {/* Address Field */}
-                    <div className="mb-4 w-full col-span-2 ">
-                      <label className="block mb-2 capitalize">Address</label>
-                      <input
-                        type="text"
-                        value={selectedAgent.address || ""}
-                        disabled={!isEditing}
-                        className="w-full p-2 border rounded-md"
-                        onChange={(e) => handleInputChange(e, 'address')}
-                      />
-                    </div>
-
-                    {/* Role Field */}
-                    <div className="mb-4 w-full md:order-8">
-                      <label className="block mb-1">Role</label>
-                      <select
-                        className="border p-2 w-full"
-                        disabled={!isEditing}
-                        value={selectedAgent.role || ""}  // Ensure it reflects the boolean state as 'true' or 'false'
-                        onChange={(e) => handleInputChange(e, 'role')}
-                      >
-                        <option hidden>Select role</option>
-                        <option value="agent">agent</option>
-                        <option value="admin">admin</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Password Field */}
-                  {isAdmin && (
-                    isEditing && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 w-full">
-
-                        <div className="mb-4 w-full col-span-2 flex flex-row">
-                          <div className="w-full relative"> {/* Added 'relative' to this container */}
-                            <label className="block mb-2">Password</label>
-                            <div className="w-full">
-                              <input
-                                type={isPasswordVisible ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full p-2 border rounded-md"
-                              />
-                              <button
-                                type="button"
-                                onClick={togglePasswordVisibility}
-                                className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500 mt-4"
-                              >
-                                {isPasswordVisible ? (
-                                  <EyeOff className="w-5 h-5" />
-                                ) : (
-                                  <Eye className="w-5 h-5" />
-                                )}
-                              </button>
+                          <div className="mb-4 w-full col-span-2 flex flex-row">
+                            <div className="w-full relative"> {/* Added 'relative' to this container */}
+                              <label className="block mb-2">Password</label>
+                              <div className="w-full">
+                                <input
+                                  type={isPasswordVisible ? 'text' : 'password'}
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  className="w-full p-2 border rounded-md"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={togglePasswordVisibility}
+                                  className="absolute top-1/2 right-3 transform -translate-y-1/2 text-gray-500 mt-4"
+                                >
+                                  {isPasswordVisible ? (
+                                    <EyeOff className="w-5 h-5" />
+                                  ) : (
+                                    <Eye className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger className="bg-white text-zinc-900 border h-11 w-[33%] font-medium rounded-md text-sm ml-4 self-end">
+                                Reset Password
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Reset Password</AlertDialogTitle>
+                                </AlertDialogHeader>
+                                Are you sure you want to reset the password of {selectedAgent.firstName} {selectedAgent.lastName}
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleResetPassword}>Reset</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
 
+                        </div>
+                      )
+                    )}
+                  </CardContent>
+                  <CardFooter className='self-end mt-auto'>
+                    {isAdmin && (
+                      isEditing ? (
+                        <div>
                           <AlertDialog>
-                            <AlertDialogTrigger className="bg-white text-zinc-900 border h-11 w-[33%] font-medium rounded-md text-sm ml-4 self-end">
-                              Reset Password
+                            <AlertDialogTrigger className="bg-zinc-700 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
+                              Cancel
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Reset Password</AlertDialogTitle>
+                                <AlertDialogTitle>Edit Agent</AlertDialogTitle>
                               </AlertDialogHeader>
-                              Are you sure you want to reset the password of {selectedAgent.firstName} {selectedAgent.lastName}
+                              Are you sure you want to discard the changes?
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>No</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleCancelChanges}>Yes</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger className="bg-white text-zinc-900 border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm">
+                              Save Changes
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Edit Agent</AlertDialogTitle>
+                              </AlertDialogHeader>
+                              Are you sure you want to save these changes?
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleResetPassword}>Reset</AlertDialogAction>
+                                <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
-
-                      </div>
-                    )
-                  )}
-                </CardContent>
-                <CardFooter className='self-end mt-auto'>
-                  {isAdmin && (
-                    isEditing ? (
-                      <div>
-                        <AlertDialog>
-                          <AlertDialogTrigger className="bg-zinc-700 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
-                            Cancel
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Edit Agent</AlertDialogTitle>
-                            </AlertDialogHeader>
-                            Are you sure you want to discard the changes?
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>No</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleCancelChanges}>Yes</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-
-                        <AlertDialog>
-                          <AlertDialogTrigger className="bg-white text-zinc-900 border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm">
-                            Save Changes
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Edit Agent</AlertDialogTitle>
-                            </AlertDialogHeader>
-                            Are you sure you want to save these changes?
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    ) : (
-                      <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
-                        Edit Profile
-                      </button>
-                    )
-                  )}
-                </CardFooter>
-              </Card>
-            ) : (
-              <div className="flex items-center justify-center h-full text-xl text-gray-500">
-                Please select an agent
-              </div>
-            )}
+                      ) : (
+                        <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
+                          Edit Profile
+                        </button>
+                      )
+                    )}
+                  </CardFooter>
+                </Card>
+              ) : (
+                <div className="flex items-center justify-center h-full text-xl text-gray-500">
+                  Please select an agent
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

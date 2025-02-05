@@ -10,6 +10,7 @@ import { ref, onValue } from "firebase/database";
 import { 
   Home, 
   GlobeLock,
+  BookMarked,
   MessagesSquare,
   Users,
   Camera,
@@ -38,6 +39,7 @@ const main = [
   { title: "Home", url: "/dashboard", icon: Home },
   { title: "Mission Control", url: "/dashboard/mission-control", icon: GlobeLock },
   { title: "Mi6: Chat Room", url: "/dashboard/mi6-chat-room", icon: MessagesSquare },
+  { title: "Events List", url: "/dashboard/events", icon: BookMarked },
   { title: "Agents List", url: "/dashboard/agent-list", icon: Users },
   { title: "Aresenal", url: "/dashboard/arsenal", icon: Camera },
   { title: "Archive", url: "/dashboard/archive", icon: Archive },

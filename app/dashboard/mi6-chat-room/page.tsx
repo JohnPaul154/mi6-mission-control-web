@@ -136,8 +136,13 @@ export default function MI6ChatRoomPage() {
               >
                 {/* For the current user's message, only show the text */}
                 {isCurrentUser ? (
-                  <div className="p-3 rounded-lg bg-blue-200 text-stone-900 max-w-[60%]">
-                    <div>{message.text}</div>
+                  <div className="group relative flex items-center gap-3 max-w-[60%]">
+                    <div className="p-3 rounded-lg bg-blue-200 text-stone-900">
+                      <div>{message.text}</div>
+                    </div>
+                    <div className="text-xs text-gray-400 absolute top-1/2 left-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 max-w-[60%]">
@@ -153,8 +158,14 @@ export default function MI6ChatRoomPage() {
                     )}
 
                     <div>
-                      <div className="p-3 rounded-lg bg-gray-100 text-stone-900 relative flex flex-col">
-                        <div>{message.text}</div>
+                      <div className="group relative">
+                        <div className="p-3 rounded-lg bg-gray-100 text-stone-900 relative flex flex-col">
+                          <div>{message.text}</div>
+                        </div>
+                        <div className="text-xs text-gray-400 absolute top-1/2 right-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+
                       </div>
 
                       {/* Show Name at the bottom only for the last message from the sender */}
@@ -164,7 +175,7 @@ export default function MI6ChatRoomPage() {
                         </div>
                       )}
                     </div>
-
+                    
                   </div>
                 )}
               </div>
@@ -182,7 +193,7 @@ export default function MI6ChatRoomPage() {
           />
           <Button onClick={handleSendMessage}>Send</Button>
         </CardFooter>
-        
+
       </Card>
     </div>
   );

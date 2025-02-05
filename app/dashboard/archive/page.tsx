@@ -10,7 +10,7 @@ import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { AgentData, EventData } from "@/firebase/collection-types";
 import { set, ref, remove } from "firebase/database";
 import { useSession } from "@/contexts/SessionContext";
-import { Trash, ArchiveRestore } from "lucide-react";
+import { Trash, ArchiveRestore, Search } from "lucide-react";
 import {
   Tabs,
   TabsContent,
@@ -27,6 +27,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
 
 interface AgentCardProps {
   name: string;
@@ -53,11 +56,11 @@ const AgentCard = ({ name, id, onUpdate }: AgentCardProps & { onUpdate: () => vo
         isArchive: false
       });
 
-      const docSnap  = await getDoc(docRef);
+      const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         const agent = docSnap.data() as AgentData;
-        
+
         const dataRef = ref(realtimeDB, `agents/${id}`);
         await set(dataRef, {
           status: "offline",
@@ -73,7 +76,7 @@ const AgentCard = ({ name, id, onUpdate }: AgentCardProps & { onUpdate: () => vo
       }
 
       onUpdate();
-    } catch(error) {
+    } catch (error) {
       console.error("Error deleting event:", error);
     }
   };
@@ -140,6 +143,10 @@ export default function ArchivePage() {
   const [trigger, setTrigger] = useState(false);
   const [selectedTab, setSelectedTab] = useState("events");
   const [agents, setAgents] = useState<AgentData[]>([]);
+  const [searchEvent, setSearchEvent] = useState("");
+  const [refetchEvent, setRefetchEvent] = useState(true);
+  const [searchAgent, setSearchAgent] = useState("");
+  const [refetchAgent, setRefetchAgent] = useState(true);
 
   // Trigger when event cards do an action
   const triggerUpdate = () => {
@@ -227,10 +234,18 @@ export default function ArchivePage() {
       // Resolve all events and filter archived ones
       const resolvedEvents = await Promise.all(eventPromises);
 
-      // Update state variables
-      setEvents(resolvedEvents);
+      // Client-side filtering based on the search query
+      const filteredEvents = resolvedEvents.filter((event) => {
+        if (searchEvent && searchEvent.trim() !== "") {
+          // Make both eventName and search query lowercase for case-insensitive comparison
+          const lowerCaseSearch = searchEvent.trim().toLowerCase();
+          return event.eventName.toLowerCase().includes(lowerCaseSearch);
+        }
+        return true;  // Return all if there's no search query
+      });
 
-      console.log(resolvedEvents); // Debugging log for events
+      // Update state variables
+      setEvents(filteredEvents as EventData[]);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
@@ -251,10 +266,23 @@ export default function ArchivePage() {
         ...doc.data() as AgentData, // Include the document fields
       }));
 
-      console.log(agents)
+      // Client-side filtering based on the search query
+      const filteredAgents = agents.filter((agent) => {
+        if (searchAgent && searchAgent.trim() !== "") {
+          // Make both search query, firstName, and lastName lowercase for case-insensitive comparison
+          const lowerCaseSearch = searchAgent.trim().toLowerCase();
+          return (
+            agent.firstName.toLowerCase().includes(lowerCaseSearch) ||
+            agent.lastName.toLowerCase().includes(lowerCaseSearch)
+          );
+        }
+        return true;  // Return all if there's no search query
+      });
+
+      console.log(filteredAgents)
 
       // Set the agents using setAgents
-      setAgents(agents);
+      setAgents(filteredAgents);
     } catch (error) {
       console.error("Error fetching agents:", error);
     }
@@ -264,6 +292,22 @@ export default function ArchivePage() {
     fetchEvents();
     fetchAgents();
   }, [trigger]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [refetchEvent])
+
+  useEffect(() => {
+    fetchAgents();
+  }, [refetchAgent])
+
+  const searchEvents = () => {
+    setRefetchEvent(!refetchEvent)
+  }
+
+  const searchAgents = () => {
+    setRefetchAgent(!refetchAgent)
+  }
 
   return (
     <div className="min-full h-full flex p-4 flex-1 flex-col">
@@ -277,10 +321,22 @@ export default function ArchivePage() {
               {/* Type Selector */}
               <TabsList className={`flex-none ${isAdmin ? "grid grid-cols-2" : ""}`}>
                 <TabsTrigger value="events" className="w-full">Events</TabsTrigger>
-                { isAdmin && ( <TabsTrigger value="agents">Agents</TabsTrigger> )}
+                {isAdmin && (<TabsTrigger value="agents">Agents</TabsTrigger>)}
               </TabsList>
 
               <TabsContent value="events" className="mt-6">
+                <form className="flex gap-3 pb-6 pt-0" onSubmit={(e) => { e.preventDefault(); searchEvents(); }}>
+                  <Input
+                    value={searchEvent}
+                    onChange={(e) => setSearchEvent(e.target.value)}
+                    placeholder="Search for event..."
+                    className="flex-1"
+                  />
+                  <Button type="submit">
+                    <Search />
+                  </Button>
+                </form>
+
                 {/* Event List */}
                 <ScrollArea className="w-full rounded-md border">
                   <div className="p-4 space-y-4 ">
@@ -307,6 +363,17 @@ export default function ArchivePage() {
               </TabsContent>
 
               <TabsContent value="agents" className="mt-6">
+                <form className="flex gap-3 pb-6 pt-0" onSubmit={(e) => { e.preventDefault(); searchAgents(); }}>
+                  <Input
+                    value={searchAgent}
+                    onChange={(e) => setSearchAgent(e.target.value)}
+                    placeholder="Search for agent..."
+                    className="flex-1"
+                  />
+                  <Button type="submit">
+                    <Search />
+                  </Button>
+                </form>
                 <ScrollArea className="w-full rounded-md border">
                   <div className="p-4 space-y-4">
                     {agents.length > 0 ? (
