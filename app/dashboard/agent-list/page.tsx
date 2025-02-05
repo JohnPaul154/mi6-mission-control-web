@@ -12,7 +12,7 @@ import { ProfileCard } from "@/components/profile-card";
 import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive, Search } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
-import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc } from "firebase/firestore";
+import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { get, ref, remove, set, update } from "firebase/database";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase"; // Make sure to import your firestore instance
 import { AgentData } from "@/firebase/collection-types";
@@ -246,9 +246,28 @@ export default function AgentListPage() {
 
   const handleResetPassword = async () => {
     try {
+      const new_password = generatePassword()
+
+      const message = {
+        subject: 'Your New Password for MI6 Mission Control',
+        text: `Hello ${selectedAgent!.firstName} ${selectedAgent!.lastName}, your new password for MI6 Mission Control is: ${new_password}.`,
+        html: `
+                <p>Hello <strong>${selectedAgent!.firstName} ${selectedAgent!.lastName}</strong>,</p>
+                <p>Your New Password: <strong>${new_password}</strong>.</p>
+                <p><em>This is an automated email. Please do not reply.</em></p>
+              `
+      };
+
+      // Add the email request to Firestore
+      const mailRef = await addDoc(collection(firestoreDB, "mail"), {
+        to: [selectedAgent!.email],
+        message: message,
+        timestamp: serverTimestamp()
+      });
+
       const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
       await updateDoc(docRef, {
-        password: generatePassword()
+        password: new_password
       });
       setShouldRefetch(!shouldRefetch);
       fetchAgentDetails(selectedAgent!.id || "");
