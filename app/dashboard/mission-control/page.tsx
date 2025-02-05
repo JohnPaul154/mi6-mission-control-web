@@ -151,7 +151,7 @@ export default function MissionControlPage() {
     // Creating the event data with only eventName and placeholders for other fields
     const newEvent = {
       eventName: newEventName,
-      location: eventDate,
+      location: "",
       agents: [],
       arsenal: [],
       contactNumber: "",

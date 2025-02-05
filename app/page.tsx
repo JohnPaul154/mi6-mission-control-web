@@ -5,13 +5,16 @@ import { useSession } from "@/contexts/SessionContext";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { CircleHelp, Eye, EyeOff } from 'lucide-react';
+import crypto from "crypto";
 
 // Firebase Imports
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs 
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 
 // Components Imports
@@ -28,13 +31,16 @@ import { Input } from "@/components/ui/input";
 
 import { firestoreDB } from '@/firebase/init-firebase';
 
+export const generateOTP = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
 export default function Home() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  
 
   const { session, setSession } = useSession();
 
@@ -50,36 +56,59 @@ export default function Home() {
     setIsPasswordVisible((prevState) => !prevState);
   };
 
-  // Function to handle login logic
   const handleLogin = async () => {
     try {
       setError(null);
 
       const userRef = collection(firestoreDB, "agents");
-      const q = query(userRef, where("email", "==", email));
+      const q = query(userRef, where("email", "==", email), where("isArchive", "==", false));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        querySnapshot.forEach((doc) => {
+        querySnapshot.forEach(async (doc) => {  // Use async function inside forEach to ensure proper await
           const userData = doc.data();
 
           if (userData.password === password) {
-            // Save the session data
-            setSession({
-              id: doc.id,
-              email: userData.email,
-              role: userData.role,
+            const otp = generateOTP();
+
+            const message = {
+              subject: 'Your OTP Code for MI6 Mission Control',
+              text: `Hello ${userData.firstName} ${userData.lastName}, your OTP code for MI6 Mission Control is: ${otp}. It is valid for 5 minutes.`,
+              html: `
+                <p>Hello <strong>${userData.firstName} ${userData.lastName}</strong>,</p>
+                <p>Your OTP code is: <strong>${otp}</strong>. It is valid for 5 minutes.</p>
+                <p><em>This is an automated email. Please do not reply.</em></p>
+              `
+            };
+
+            // Add the email request to Firestore
+            const docRef = await addDoc(collection(firestoreDB, "mail"), {
+              to: [userData.email],
+              message: message,
+              code: otp,
+              timestamp: serverTimestamp()
             });
 
-            router.push("/dashboard");
+            // Redirect to the dashboard with encrypted data in the URL
+            router.push(`/otp?data1=${doc.id}&data2=${docRef.id}`);
+
+            // Optionally, you can also store session data if needed
+            // setSession({
+            //   id: docRef.id,
+            //   email: userData.email,
+            //   role: userData.role,
+            // });
+
           } else {
             setError("Incorrect password. Please try again.");
           }
+
+          console.log(userData);
         });
       } else {
         setError("User not found. Please check your email.");
       }
-    } catch (err: any) {
+    } catch (err) {
       setError("An error occurred. Please try again later.");
       console.error("Login error:", err);
     }
