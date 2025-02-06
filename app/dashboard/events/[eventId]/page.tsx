@@ -479,7 +479,7 @@ export default function EventPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                     :
-                    <button onClick={handleEditClick}>
+                    <button onClick={handleEditClick} hidden={event.isArchive}>
                       <Edit />
                     </button>
                   }
@@ -838,7 +838,7 @@ export default function EventPage() {
                         <div className="flex justify-between items-center">
                           <p>{event.agentNames![index] || "Unknown Agent"}</p>
                           <AlertDialog>
-                            <AlertDialogTrigger className="text-red-500">
+                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive}>
                               <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -939,7 +939,7 @@ export default function EventPage() {
                         <div className="flex justify-between items-center">
                           <p>{event.arsenalNames![index] || "Unknown Arsenal"}</p>
                           <AlertDialog>
-                            <AlertDialogTrigger className="text-red-500">
+                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive}>
                               <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
