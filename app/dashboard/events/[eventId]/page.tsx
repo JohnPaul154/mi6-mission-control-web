@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { getDoc, doc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
+import { getDoc, doc, deleteDoc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { set, ref, remove, get, getDatabase } from "firebase/database";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Undo2, Edit, Save, Plus } from "lucide-react";
@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { sendNotification } from "@/lib/sendNotification";
+import { Button } from "@/components/ui/button";
 
 
 export default function EventPage() {
@@ -160,8 +161,8 @@ export default function EventPage() {
           arsenal: event.arsenal || [],
         });
         const statusRef = ref(realtimeDB, `chats/${event.id}/info/name`);
-        set(statusRef, event.eventName); 
-      
+        set(statusRef, event.eventName);
+
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
         router.push("/dashboard/events");
@@ -170,7 +171,7 @@ export default function EventPage() {
       }
     }
   };
-  
+
   const handleContactNumberChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const value = e.target.value.replace(/\D/g, ''); // Remove non-digit characters
     if (value.length <= 11) {
@@ -266,7 +267,7 @@ export default function EventPage() {
               agentNames: [...(prevEvent.agentNames || []), `${selectedAgent.firstName} ${selectedAgent.lastName}`],
             };
           });
-          
+
           // Push Notification
           sendPushNotification(selectedAgent.id);
 
@@ -371,35 +372,74 @@ export default function EventPage() {
     }
   }
 
+  const handleArchive = async () => {
+      try {
+        const docRef = doc(firestoreDB, "events", event.id!);
+        await updateDoc(docRef, {
+          isArchive: true,
+        });
+        router.push("/dashboard/archive");
+        console.log("Field updated successfully!");
+      } catch (error) {
+        console.error("Error updating field:", error);
+      }
+    };
+  
+    const handleRestore = async () => {
+      try {
+        const docRef = doc(firestoreDB, "events",  event.id!);
+        await updateDoc(docRef, {
+          isArchive: false,
+        });
+        router.push("/dashboard/events");
+        console.log("Field updated successfully!");
+      } catch (error) {
+        console.error("Error updating field:", error);
+      }
+    }
+  
+    const handleDelete = async () => {
+      try {
+        const docRef = doc(firestoreDB, "events", event.id!);
+        await deleteDoc(docRef);
+        const dataRef = ref(realtimeDB, `chats/${event.id}`); // Replace with your data path
+        remove(dataRef)
+        router.push("/dashboard/archive");
+        console.log("Event deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting event:", error);
+      }
+    }
+
   // Push Notification
   const sendPushNotification = async (agentId: string) => {
     if (!agentId) {
       console.error("Agent ID is required.");
       return;
     }
-  
+
     try {
       const agentTokenRef = ref(realtimeDB, `agents/${agentId}/token`);
       const tokenSnapshot = await get(agentTokenRef);
-  
+
       if (!tokenSnapshot.exists()) {
         console.log(`No token found for agent with ID: ${agentId}`);
         return;
       }
-  
+
       const agentToken = tokenSnapshot.val();
-  
+
       // Send Push Notification (assuming you have a stored Expo push token)
       await sendNotification(agentToken, event.eventName, `You are part of an event at ${event.location} on ${event.eventDate}.`);
-      
+
       console.log(`Push notification sent to agent ${agentId}`);
-      
+
       return { id: agentId, token: agentToken };
     } catch (error) {
       console.error(`Error sending push notification to agent ${agentId}:`, error);
     }
-  };  
-  
+  };
+
   return (
     <div className="min-full flex p-4 flex-1 flex-col">
       {/* Header */}
@@ -924,6 +964,23 @@ export default function EventPage() {
               </ScrollArea>
             </CardContent>
           </Card>
+
+          <CardFooter className="p-0 mt-[-2rem] w-full">
+            {event.isArchive ? (
+              <div className="flex mt-4 space-x-2 w-full">
+                {/* Button 1 */}
+                <Button className="w-1/2" onClick={handleRestore}>Restore</Button>
+
+                {/* Button 2 */}
+                <Button className="bg-gray-600 text-white w-1/2" onClick={handleDelete}>Delete</Button>
+              </div>
+            ) : (
+              <div className="flex mt-4 space-x-2 w-full">
+                {/* Button 1 */}
+                <Button className="w-full" onClick={handleArchive}>Archive</Button>
+              </div>
+            )}
+          </CardFooter>
         </CardContent>
       </Card>
     </div>

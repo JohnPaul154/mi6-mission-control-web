@@ -460,8 +460,9 @@ export default function EventChatPage() {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type your message..."
             className="flex-1"
+            disabled={event?.isArchive}
           />
-          <Button onClick={handleSendMessage}>Send</Button>
+          <Button onClick={handleSendMessage} disabled={event?.isArchive}>Send</Button>
         </CardFooter>
 
       </Card>

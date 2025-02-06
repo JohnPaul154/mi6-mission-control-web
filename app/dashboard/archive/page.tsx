@@ -70,6 +70,7 @@ const AgentCard = ({ name, id, onUpdate }: AgentCardProps & { onUpdate: () => vo
           email: agent.email,
           avatar: agent.avatar
         });
+
       } else {
         console.log("No such document!");
         return null;

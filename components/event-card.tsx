@@ -89,7 +89,7 @@ export function EventCard({
 
   // Button Handlers
   const handleEditClick = () => {
-    router.push(`/dashboard/mission-control/${id}`);
+    router.push(`/dashboard/events/${id}`);
   };
 
   const handleArchive = async () => {
@@ -133,11 +133,7 @@ export function EventCard({
 
   // Go to chat
   const handleEventClick = (id: string) => {
-    if (isArchive) {
-      handleRestore(); // Restore event if it is archived
-    } else {
-      router.push(`/dashboard/chat/${id}`); // Navigate to chat if it's not archived
-    }
+    router.push(`/dashboard/chat/${id}`); // Navigate to chat if it's not archived
   };
 
   return (
@@ -192,27 +188,12 @@ export function EventCard({
           {isArchive ? (
             // If it is archived, show "Return" and "Delete" buttons
             <>
-              <AlertDialog>
-                <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
-                  <ArchiveRestore className="w-5 h-5" />
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Restore Event</AlertDialogTitle>
-                  </AlertDialogHeader>
-                  <div className="py-2">
-                    Are you sure you want to restore this event?
-                  </div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRestore}>
-                      Restore
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <button
+                onClick={handleEditClick}
+                className="flex items-center p-2 hover:bg-zinc-500 rounded-md"
+              >
+                <Edit className="w-5 h-5" />
+              </button>
 
               <AlertDialog>
                 <AlertDialogTrigger className="flex items-center p-2 hover:bg-zinc-500 rounded-md">
