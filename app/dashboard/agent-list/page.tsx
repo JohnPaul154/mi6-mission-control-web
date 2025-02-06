@@ -159,6 +159,8 @@ export default function AgentListPage() {
         return;
       }
 
+      const new_password = generatePassword()
+
       const newAgent: AgentData = {
         avatar: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp", // Default avatar URL if missing
         email: email,
@@ -170,10 +172,30 @@ export default function AgentListPage() {
         contactNumber: "",
         dateHired: "",
         role: "agent",
-        password: generatePassword(),
+        password: new_password,
         isNew: true,
         isArchive: false,
       };
+
+      // send mail to new user
+      const message = {
+        subject: `Welcome ${firstName} to MI6 Mission Control`,
+        text: `Hello ${firstName} ${lastName}, your password for MI6 Mission Control is: ${new_password}.`,
+        html: `
+                <p>Hello <strong>${firstName} ${lastName}</strong>,</p>
+                <p>We welcome you to MI6 Photoman, here are your credentials</p>
+                <p>Email: <strong>${email}</strong>.</p>
+                <p>Password: <strong>${new_password}</strong>.</p>
+                <p><em>This is an automated email. Please do not reply.</em></p>
+              `
+      };
+
+      // Add the email request to Firestore
+      const mailRef = await addDoc(collection(firestoreDB, "mail"), {
+        to: [email],
+        message: message,
+        timestamp: serverTimestamp()
+      });
 
       // Add to firestore
       const newUser = await addDoc(collection(firestoreDB, "agents"), newAgent);
