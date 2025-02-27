@@ -4,6 +4,10 @@ export interface EventData {
   id?: string;
   agents: DocumentReference[]; 
   agentNames?: string[];
+  agentsAccepted: DocumentReference[]; 
+  agentsAcceptedNames?: string[];
+  agentsDeclined: DocumentReference[]; 
+  agentsDeclinedNames?: string[];
   arsenal: DocumentReference[];
   arsenalNames?: string[];
   contactNumber: string;
@@ -19,7 +23,16 @@ export interface EventData {
   notes: string;
   hqt: string;
   aop: string;
+  collection: string;
   isArchive: boolean;
+}
+
+export interface ReviewData {
+  id?: string;
+  eventId: DocumentReference;
+  rating: number;
+  review: string;
+  report: string;
 }
 
 export interface ArsenalData {
@@ -46,4 +59,6 @@ export interface AgentData {
   password: string; 
   isNew: boolean;
   isArchive: boolean;
+  isSuspended: boolean;
+  suspensionEndDate: string;
 }

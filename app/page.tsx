@@ -68,6 +68,11 @@ export default function Home() {
         querySnapshot.forEach(async (doc) => {  // Use async function inside forEach to ensure proper await
           const userData = doc.data();
 
+          if (userData.isSuspended) {
+            setError(`Account is suspended till ${userData.suspensionEndDate}`);
+            return
+          }
+
           if (userData.password === password) {
             const otp = generateOTP();
 

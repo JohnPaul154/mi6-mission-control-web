@@ -18,9 +18,9 @@ import { useState, useRef, useEffect } from "react";
 import { MoreVertical } from "lucide-react";
 import { useChat } from '@/contexts/ChatContext';
 import { useSession } from "@/contexts/SessionContext";
-import { get, onValue, ref, set } from "firebase/database";
+import { get, onValue, ref, set, update } from "firebase/database";
 import { realtimeDB, firestoreDB } from "@/firebase/init-firebase";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { doc, getDoc, Timestamp, DocumentReference } from "firebase/firestore";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types"
 
@@ -30,7 +30,7 @@ const convertTo12HourFormat = (time24: string): string => {
   }
 
   const [hours, minutes] = time24.split(":").map(Number);
-  
+
   console.log(hours, minutes)
 
   if (isNaN(hours) || isNaN(minutes)) {
@@ -40,12 +40,13 @@ const convertTo12HourFormat = (time24: string): string => {
   const period = hours >= 12 ? "PM" : "AM";
   const hour12 = hours % 12 || 12;  // Convert hour to 12-hour format, handling midnight (00:00) and noon (12:00)
   const formattedTime = `${hour12}:${minutes.toString().padStart(2, "0")} ${period}`;
-  
+
   return formattedTime;
 };
 
 export default function EventChatPage() {
   // Parameters (in the url)
+  const router = useRouter();
   const params = useParams();
   const { eventId } = params as { eventId: string };
 
@@ -66,6 +67,8 @@ export default function EventChatPage() {
   const [agents, setAgents] = useState<any[]>([])
   const [status, setStatus] = useState("");
   const [notes, setNotes] = useState("");
+  const [checklist, setChecklist] = useState<{ [key: string]: { completed: boolean; timestamp?: number } }>({});
+
 
   // Function that loads everytime you get to this screen
   useEffect(() => {
@@ -210,6 +213,71 @@ export default function EventChatPage() {
     setNotes(newNotes);
   };
 
+  // Fetch checklist from Firebase
+  useEffect(() => {
+    const fetchChecklist = async () => {
+      try {
+        const snapshot = await get(ref(realtimeDB, `chats/${eventId}/info/checklist`));
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+
+          // Define the fixed order
+          const order = ["arrivalHQ", "arrivalEvent", "setupDone", "cleanup", "returnHQ"];
+
+          // Sort checklist based on the defined order
+          const sortedChecklist = Object.fromEntries(
+            order
+              .filter((key) => key in data) // Ensure only existing keys are included
+              .map((key) => [key, data[key]]) // Map to key-value pairs
+          );
+
+          console.log(sortedChecklist)
+
+          setChecklist(sortedChecklist);
+        }
+      } catch (error) {
+        console.error("Error fetching checklist:", error);
+      }
+    };
+
+    fetchChecklist();
+  }, [eventId]);
+
+  // Format timestamp
+  const formatDate = (timestamp?: number) => {
+    if (!timestamp) return "";
+    return new Date(timestamp).toLocaleString(); // Format timestamp as readable date
+  };
+
+  // Handle checkbox change
+  const handleCheckboxChange = async (key: string) => {
+    const timestamp = Date.now();
+    const updatedChecklist = {
+      ...checklist,
+      [key]: { completed: true, timestamp },
+    };
+
+    setChecklist(updatedChecklist);
+
+    try {
+      await update(ref(realtimeDB, `chats/${eventId}/info/checklist`), { [key]: { completed: true, timestamp } });
+      if (key === "arrivalHQ") {
+        await sendMessage(currentChat!.id, "system", `All team members arrived at HQ at ${formatDate(timestamp)}`);
+      } else if (key === "arrivalEvent") {
+        await sendMessage(currentChat!.id, "system", `All team members arrived at the event venue at ${formatDate(timestamp)}`);
+      } else if (key === "setupDone") {
+        await sendMessage(currentChat!.id, "system", `Finished setting up all equipments at ${formatDate(timestamp)}`);
+      } else if (key === "cleanup") {
+        await sendMessage(currentChat!.id, "system", `Finished packing up and inventory at ${formatDate(timestamp)}`);
+      } else if (key === "returnHQ") {
+        await sendMessage(currentChat!.id, "system", `All team members returned to HQ at ${formatDate(timestamp)}`);
+      } 
+      
+    } catch (error) {
+      console.error("Error updating checklist:", error);
+    }
+  };
+
   // Scroll to the bottom when new messages are added
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -282,14 +350,126 @@ export default function EventChatPage() {
               <div className="w-full mb-4 px-2">
                 <label>Notes: </label>
                 <textarea
-                    className="w-full p-2"
-                    value={notes || ''}
-                    onChange={(e) => handleNotesChange(e.target.value)}
-                  />
+                  className="w-full p-2"
+                  value={notes || ''}
+                  onChange={(e) => handleNotesChange(e.target.value)}
+                />
               </div>
 
-                  
-              
+              {/* Checklist */}
+              <div className="w-full mb-4 px-2">
+                <label>Checklist:</label>
+                {/* Arrived at HQ (Full Team) */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.arrivalHQ?.completed || false}
+                      disabled={checklist?.arrivalHQ?.completed || false}
+                      onChange={() => handleCheckboxChange("arrivalHQ")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Arrived at HQ (Full Team)</label>
+                      {checklist?.setupDone?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.arrivalHQ.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.arrivalHQ.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Arrived at Event */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.arrivalEvent?.completed || false}
+                      disabled={checklist?.arrivalEvent?.completed || false}
+                      onChange={() => handleCheckboxChange("arrivalEvent")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Arrived at Event</label>
+                      {checklist?.setupDone?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.arrivalEvent.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.arrivalEvent.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Finished Setup */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.setupDone?.completed || false}
+                      disabled={checklist?.setupDone?.completed || false}
+                      onChange={() => handleCheckboxChange("setupDone")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Finished Setup</label>
+                      {checklist?.setupDone?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.setupDone.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.setupDone.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Finished Cleanup */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.cleanup?.completed || false}
+                      disabled={checklist?.cleanup?.completed || false}
+                      onChange={() => handleCheckboxChange("cleanup")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Finished Cleanup</label>
+                      {checklist?.cleanup?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.cleanup.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.cleanup.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Returned to HQ */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.returnHQ?.completed || false}
+                      disabled={checklist?.returnHQ?.completed || false}
+                      onChange={() => handleCheckboxChange("returnHQ")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Returned to HQ</label>
+                      {checklist?.returnHQ?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.returnHQ.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.returnHQ.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* Details */}
               <h2 className="text-2xl self-center font-semibold">Details</h2>
@@ -385,6 +565,10 @@ export default function EventChatPage() {
                   <p className="text-sm mt-2">No assigned</p>
                 )}
               </div>
+
+              {/* Arsenal */}
+              <Button className="mb-4" onClick={() => { router.push(`/dashboard/events/${eventId}/report`) }}>See Full Report</Button>
+              <Button onClick={() => { router.push(`/dashboard/events/${eventId}/review`) }}>Get Review</Button>
             </PopoverContent>
           </Popover>
         </CardHeader>
@@ -445,7 +629,7 @@ export default function EventChatPage() {
                         </div>
                       )}
                     </div>
-                    
+
                   </div>
                 )}
               </div>

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { getDoc, doc, deleteDoc, Timestamp, DocumentReference, updateDoc, getDocs, collection } from "firebase/firestore";
+import { getDoc, doc, deleteDoc, Timestamp, DocumentReference, updateDoc, getDocs, collection ,query, where } from "firebase/firestore";
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
 import { set, ref, remove, get, getDatabase } from "firebase/database";
-import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types";
+import { EventData, AgentData, ArsenalData, ReviewData } from "@/firebase/collection-types";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { toast } from "sonner"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Undo2, Edit, Save, Plus } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { sendNotification } from "@/lib/sendNotification";
 import { Button } from "@/components/ui/button";
+import StarRating from "@/components/star-rating";
 
 
 export default function EventPage() {
@@ -38,14 +40,17 @@ export default function EventPage() {
   // Global states
   const [event, setEvent] = useState<EventData | null>(null);
   const [shouldRefetch, setShouldRefetch] = useState(false);
+  const [review, setReview] = useState<ReviewData | null>(null);
 
   // Detail states
   const [eventDate, setEventDate] = useState<string>("");
+  const [collections, setCollections] = useState<string>("");
   const [isEditable, setIsEditable] = useState(searchParams.get("edit") === "true");
 
   // Agent states
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [availableAgents, setAvailableAgents] = useState<AgentData[]>([]);
+  const [addAgentError, setAddAgentError] = useState<string>("");
 
   // Arsenal states
   const [availableCamera, setAvailableCamera] = useState<ArsenalData[]>([]);
@@ -93,6 +98,7 @@ export default function EventPage() {
 
             // Update state with resolved data
             setEventDate(data.eventDate)
+            setCollections(data.collection);
 
             setEvent({
               id: docSnap.id || "Unknown ID", // Firestore document ID
@@ -108,8 +114,32 @@ export default function EventPage() {
         }
       };
 
-      fetchEvent();
+      const eventRef = doc(firestoreDB, "events", eventId);
 
+      // Fetch event details and fill fields
+      const fetchReview = async () => {
+        try {
+          const q = query(collection(firestoreDB, "reviews"), where("eventId", "==", eventRef));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0]; // Get the first matching document
+            const data = docSnap.data() as ReviewData;
+
+            setReview({
+              id: docSnap.id,
+              ...data, // Spread all other properties from data
+            });
+          } else {
+            console.error("Review not found for eventId:", eventId);
+          }
+        } catch (error) {
+          console.error("Error fetching event data:", error);
+        }
+      };
+
+      fetchReview();
+      fetchEvent();
     }
   }, [eventId, shouldRefetch]);
 
@@ -159,6 +189,7 @@ export default function EventPage() {
           notes: event.notes || "",
           agents: event.agents || [],
           arsenal: event.arsenal || [],
+          collection: event.collection || ""
         });
         const statusRef = ref(realtimeDB, `chats/${event.id}/info/name`);
         set(statusRef, event.eventName);
@@ -179,6 +210,13 @@ export default function EventPage() {
     }
   };
 
+  const handleCollectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ""); // Remove non-digit characters
+    value = new Intl.NumberFormat("en-US").format(Number(value)); // Format with commas
+    setCollections(value); // Assuming you have state management
+    handleInputChange(value, "collection");
+  };
+
   const handleCancelChanges = () => {
     setShouldRefetch(!shouldRefetch)
     setIsEditable(false);
@@ -187,21 +225,37 @@ export default function EventPage() {
   // Fetch all agents for assigning
   const fetchAllAvailableAgents = async () => {
     try {
-      const agentsCollectionRef = collection(firestoreDB, 'agents');
-      const querySnapshot = await getDocs(agentsCollectionRef);
+      if (!event) {
+        console.error("Event is undefined");
+        return;
+      }
 
-      // Extract the data from the documents
-      const agents = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as AgentData[];
+      // Fetch agents accepted for the event
+      const docSnapshots = await Promise.all(
+        (event.agentsAccepted || []).map(ref => getDoc(ref))
+      );
 
-      // Filter to extract unassigned agents
-      const eventAgentIds = event?.agents.map((agentRef: DocumentReference) => agentRef.id) || [];
-      const filteredAgents = agents.filter(agent => !eventAgentIds.includes(agent.id || ""));
+      const agents: AgentData[] = docSnapshots
+        .filter(snapshot => snapshot.exists()) // Ensure only existing docs are processed
+        .map(snapshot => ({
+          id: snapshot.id,
+          ...snapshot.data()
+        }) as AgentData); // Type assertion
 
-      setAvailableAgents(filteredAgents)
-      console.log("Filtered Agents", filteredAgents)
+      console.log("Fetched Agents:", agents);
+
+      // Extract IDs of assigned agents
+      const eventAgentIds: string[] = (event.agents || []).map(
+        (agentRef: DocumentReference) => agentRef.id
+      );
+
+      // Filter out assigned agents
+      const unassignedAgents: AgentData[] = agents.filter(
+        agent => !eventAgentIds.includes(agent.id || "")
+      );
+
+      setAvailableAgents(unassignedAgents);
+      console.log("Unassigned Agents:", unassignedAgents);
     } catch (error) {
       console.error("Error fetching agents: ", error);
     }
@@ -251,35 +305,57 @@ export default function EventPage() {
   };
 
   const handleAddAgent = async () => {
-    if (selectedAgent && selectedAgent.id) {
-      // Only proceed if selectedAgent is not null and id exists
+    if (!selectedAgent || !selectedAgent.id) {
+      console.error("Selected agent is invalid or missing ID");
+      return;
+    }
+
+    if (!event || !event.id || !event.eventDate) {
+      console.error("Event is invalid or missing required details");
+      return;
+    }
+
+    try {
       const agentRef = doc(firestoreDB, "agents", selectedAgent.id);
 
-      // Update the Firestore event document after state update
-      if (event && event?.id) {
-        try {
-          setEvent((prevEvent) => {
-            if (!prevEvent) return null; // Ensure event is not null
+      // **Step 1: Fetch all events where this agent is assigned**
+      const eventsSnapshot = await getDocs(collection(firestoreDB, "events"));
+      const agentEvents = eventsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as EventData)) // Extract event data
+        .filter(eventData =>
+          eventData.agents?.some((ref: DocumentReference) => ref.id === selectedAgent.id)
+        ); // Check if agent is assigned
 
-            return {
-              ...prevEvent,
-              agents: [...(prevEvent.agents || []), agentRef], // Ensure agents array exists
-              agentNames: [...(prevEvent.agentNames || []), `${selectedAgent.firstName} ${selectedAgent.lastName}`],
-            };
-          });
+      // **Step 2: Check if any event has the same date**
+      const isAlreadyAssigned = agentEvents.some(
+        assignedEvent => assignedEvent.eventDate === event.eventDate
+      );
 
-          // Push Notification
-          sendPushNotification(selectedAgent.id);
-
-          console.log("Event updated with new agent!");
-        } catch (error) {
-          console.error("Error saving agent to event:", error);
-        }
+      if (isAlreadyAssigned) {
+        console.warn("Agent is already assigned to another event on this date.");
+        toast("Agent is already assigned to another event on this date.")
+        return;
       }
-    } else {
-      console.error("Selected agent is invalid or missing ID");
+
+      // **Step 3: Update event state**
+      setEvent((prevEvent) => {
+        if (!prevEvent) return null;
+
+        return {
+          ...prevEvent,
+          agents: [...(prevEvent.agents || []), agentRef], // Ensure agents array exists
+          agentNames: [...(prevEvent.agentNames || []), `${selectedAgent.firstName} ${selectedAgent.lastName}`],
+        };
+      });
+
+      // **Step 4: Send push notification**
+      sendPushNotification(selectedAgent.id);
+
+      console.log("Event updated with new agent!");
+
+    } catch (error) {
+      console.error("Error adding agent to event:", error);
     }
-    console.log(event.agents)
   };
 
   const handleRemoveAgent = async (agentRefToRemove: DocumentReference, agentNameToRemove: string) => {
@@ -321,32 +397,57 @@ export default function EventPage() {
   };
 
   const handleAddArsenal = async () => {
-    if (selectedArsenal && selectedArsenal.id) {
-      // Only proceed if selectedAgent is not null and id exists
+    if (!selectedArsenal || !selectedArsenal.id) {
+      console.error("Selected arsenal is invalid or missing ID");
+      return;
+    }
+
+    if (!event || !event.id || !event.eventDate) {
+      console.error("Event is invalid or missing required details");
+      return;
+    }
+
+    try {
       const arsenalRef = doc(firestoreDB, "arsenal", selectedArsenal.id);
 
-      // Update the Firestore event document after state update
-      if (event && event?.id) {
-        try {
-          setEvent((prevEvent) => {
-            if (!prevEvent) return null; // Ensure event is not null
+      // **Step 1: Fetch all events where this arsenal is assigned**
+      const eventsSnapshot = await getDocs(collection(firestoreDB, "events"));
+      const arsenalEvents = eventsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as EventData)) // Extract event data
+        .filter(eventData =>
+          eventData.arsenal?.some((ref: DocumentReference) => ref.id === selectedArsenal.id)
+        ); // Check if arsenal is assigned
 
-            return {
-              ...prevEvent,
-              arsenal: [...(prevEvent.arsenal || []), arsenalRef], // Ensure agents array exists
-              arsenalNames: [...(prevEvent.arsenalNames || []), selectedArsenal.name],
-            };
-          });
-        } catch (error) {
-          console.error("Error saving arsenal to event:", error);
-        }
+      // **Step 2: Check if any event has the same date**
+      const isAlreadyAssigned = arsenalEvents.some(
+        assignedEvent => assignedEvent.eventDate === event.eventDate
+      );
+
+      if (isAlreadyAssigned) {
+        console.warn("Arsenal is already assigned to another event on this date.");
+        toast("Arsenal is already assigned to another event on this date.");
+        return;
       }
-    } else {
-      console.error("Selected arsenal is invalid or missing ID");
+
+      // **Step 3: Update event state**
+      setEvent((prevEvent) => {
+        if (!prevEvent) return null;
+
+        return {
+          ...prevEvent,
+          arsenal: [...(prevEvent.arsenal || []), arsenalRef], // Ensure arsenal array exists
+          arsenalNames: [...(prevEvent.arsenalNames || []), selectedArsenal.name],
+        };
+      });
+
+      console.log("Event updated with new arsenal!");
+
+    } catch (error) {
+      console.error("Error adding arsenal to event:", error);
     }
 
     setSelectedArsenal(null);
-  }
+  };
 
   const handleRemoveArsenal = async (arsenalRefToRemove: DocumentReference, arsenalNameToRemove: string) => {
     if (!event || !event.id) {
@@ -373,43 +474,43 @@ export default function EventPage() {
   }
 
   const handleArchive = async () => {
-      try {
-        const docRef = doc(firestoreDB, "events", event.id!);
-        await updateDoc(docRef, {
-          isArchive: true,
-        });
-        router.push("/dashboard/archive");
-        console.log("Field updated successfully!");
-      } catch (error) {
-        console.error("Error updating field:", error);
-      }
-    };
-  
-    const handleRestore = async () => {
-      try {
-        const docRef = doc(firestoreDB, "events",  event.id!);
-        await updateDoc(docRef, {
-          isArchive: false,
-        });
-        router.push("/dashboard/events");
-        console.log("Field updated successfully!");
-      } catch (error) {
-        console.error("Error updating field:", error);
-      }
+    try {
+      const docRef = doc(firestoreDB, "events", event.id!);
+      await updateDoc(docRef, {
+        isArchive: true,
+      });
+      router.push("/dashboard/archive");
+      console.log("Field updated successfully!");
+    } catch (error) {
+      console.error("Error updating field:", error);
     }
-  
-    const handleDelete = async () => {
-      try {
-        const docRef = doc(firestoreDB, "events", event.id!);
-        await deleteDoc(docRef);
-        const dataRef = ref(realtimeDB, `chats/${event.id}`); // Replace with your data path
-        remove(dataRef)
-        router.push("/dashboard/archive");
-        console.log("Event deleted successfully!");
-      } catch (error) {
-        console.error("Error deleting event:", error);
-      }
+  };
+
+  const handleRestore = async () => {
+    try {
+      const docRef = doc(firestoreDB, "events", event.id!);
+      await updateDoc(docRef, {
+        isArchive: false,
+      });
+      router.push("/dashboard/events");
+      console.log("Field updated successfully!");
+    } catch (error) {
+      console.error("Error updating field:", error);
     }
+  }
+
+  const handleDelete = async () => {
+    try {
+      const docRef = doc(firestoreDB, "events", event.id!);
+      await deleteDoc(docRef);
+      const dataRef = ref(realtimeDB, `chats/${event.id}`); // Replace with your data path
+      remove(dataRef)
+      router.push("/dashboard/archive");
+      console.log("Event deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting event:", error);
+    }
+  }
 
   // Push Notification
   const sendPushNotification = async (agentId: string) => {
@@ -600,7 +701,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Number of SD Card */}
-                <div className="md:order-4">
+                <div className="md:order-5">
                   <label className="block mb-1">Number of SD Card</label>
                   {isEditable ? (
                     <div className="flex items-center space-x-2">
@@ -656,7 +757,7 @@ export default function EventPage() {
                 </div>
 
                 {/*Number of Battery*/}
-                <div className="md:order-4">
+                <div className="md:order-6">
                   <label className="block mb-1">Number of Battery</label>
                   {isEditable ? (
                     <div className="flex items-center space-x-2">
@@ -712,7 +813,7 @@ export default function EventPage() {
                 </div>
 
                 {/* HQT Field */}
-                <div className="md:order-5">
+                <div className="md:order-7">
                   <label className="block mb-1">HQT</label>
                   <input
                     type="time"
@@ -725,7 +826,7 @@ export default function EventPage() {
                 </div>
 
                 {/* AOP Field */}
-                <div className="md:order-5">
+                <div className="md:order-8">
                   <label className="block mb-1">AOP</label>
                   <input
                     type="time"
@@ -738,7 +839,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Contact Person Field */}
-                <div className="md:order-5">
+                <div className="md:order-9">
                   <label className="block mb-1">Contact Person</label>
                   <input
                     type="text"
@@ -751,7 +852,7 @@ export default function EventPage() {
                 </div>
 
                 {/* Contact Number Field */}
-                <div className="md:order-7">
+                <div className="md:order-10">
                   <label className="block mb-1">Contact Number</label>
                   <input
                     type="text"
@@ -763,9 +864,9 @@ export default function EventPage() {
                   />
                 </div>
 
-                {/* Date Field */}
-                <div className="md:order-8">
-                  <label className="block mb-1">Date</label>
+                {/* Date of Event Field */}
+                <div className="md:order-11">
+                  <label className="block mb-1">Date of Event</label>
                   <input
                     type="date"
                     className="border p-2 w-full"
@@ -775,11 +876,28 @@ export default function EventPage() {
                   />
                 </div>
 
+                {/* Collections Field */}
+                <div className="md:order-12 relative">
+                  <label className="block mb-1">Collections</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="border p-2 w-full pr-10"
+                      value={collections}
+                      disabled={!isEditable}
+                      onChange={handleCollectionChange}
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      PHP
+                    </span>
+                  </div>
+                </div>
+
                 {/* Notes Field */}
-                <div className="md:order-6 md:col-span-1 md:row-span-3">
+                <div className="md:order-last md:col-span-2 md:row-span-3">
                   <label className="block mb-1">Notes:</label>
                   <textarea
-                    className="border p-2 w-full h-full max-h-52"
+                    className="border p-2 w-full"
                     value={event.notes} // Convert to 'YYYY-MM-DD' format
                     disabled={!isEditable}
                     onChange={(e) => handleInputChange(e.target.value, 'notes')}
@@ -816,7 +934,7 @@ export default function EventPage() {
                       onChange={handleAgentChange}
                       className="w-full p-2 border rounded-md mb-4"
                     >
-                      <option value="" disabled hidden>Select an agent</option>
+                      <option value="" disabled hidden>{availableAgents.length != 0 ? "Select an agent" : "No Agents Available"}</option>
                       {availableAgents.map((agent) => (
                         <option key={agent.id} value={agent.id}>
                           {agent.firstName} {agent.lastName}
@@ -838,7 +956,7 @@ export default function EventPage() {
                         <div className="flex justify-between items-center">
                           <p>{event.agentNames![index] || "Unknown Agent"}</p>
                           <AlertDialog>
-                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive}>
+                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive || !isEditable}>
                               <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -939,7 +1057,7 @@ export default function EventPage() {
                         <div className="flex justify-between items-center">
                           <p>{event.arsenalNames![index] || "Unknown Arsenal"}</p>
                           <AlertDialog>
-                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive}>
+                            <AlertDialogTrigger className="text-red-500" hidden={event.isArchive || !isEditable}>
                               <X />
                             </AlertDialogTrigger>
                             <AlertDialogContent>
@@ -964,6 +1082,36 @@ export default function EventPage() {
               </ScrollArea>
             </CardContent>
           </Card>
+
+          {/*  */}
+          <div className="flex mb-6 gap-6">
+            <Card className="w-full">
+              <CardContent className="p-6 flex flex-col justify-center">
+                <div className="flex justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Report</h2>
+                </div>
+                <textarea className="border w-full h-[14rem] p-2 resize-none" disabled={true} value={review?.report} />
+                <div className="flex mt-4 space-x-2 w-full">
+                  <Button className="w-full" onClick={() => { router.push(`/dashboard/events/${eventId}/report`) }}>See Full Report</Button>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="w-full">
+              <CardContent className="p-6 flex flex-col justify-center">
+                <div className="flex justify-between mb-4">
+                  <h2 className="text-xl font-semibold">Review</h2>
+                </div>
+                <div className="flex mb-4 justify-center">
+                  {/* Star Rating */}
+                  <StarRating rating={review?.rating || 0}></StarRating>
+                </div>
+                <textarea className="border w-full h-[10rem] p-2 resize-none" disabled={true} value={review?.review} />
+                <div className="flex mt-4 space-x-2 w-full ">
+                  <Button className="w-full" onClick={() => { router.push(`/dashboard/events/${eventId}/review`) }}>{true ? "Get Review" : "See Full Review"}</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <CardFooter className="p-0 mt-[-2rem] w-full">
             {event.isArchive ? (

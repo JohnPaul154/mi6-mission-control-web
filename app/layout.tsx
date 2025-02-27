@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Open_Sans } from 'next/font/google';
 import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { Toaster } from "@/components/ui/sonner"
 import { SessionProvider } from "@/contexts/SessionContext";
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         >
           <SessionProvider>
             {children}
+            <Toaster />
           </SessionProvider>
         </ThemeProvider>
       </body>

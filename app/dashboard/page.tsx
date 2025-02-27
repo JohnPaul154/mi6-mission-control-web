@@ -229,7 +229,7 @@ export default function DashboardPage() {
   }, [events]);
 
   return (
-    <div className="min-h-[80%] w-full p-6">
+    <div className="w-full p-6">
       <FullCalendar
         plugins={[dayGridPlugin]}
         selectable={true}
@@ -237,10 +237,29 @@ export default function DashboardPage() {
         weekends={true}
         events={parsedEvents}
         eventContent={(eventInfo) => <RenderEventContent eventInfo={eventInfo} />}
-        height={"95vh"}
+        height={"89vh"}
         eventBackgroundColor="#00000000"
         eventBorderColor="#00000000"
+       
       />
+      <div className="flex gap-4 p-4 my-4 flex-auto justify-between border rounded-md">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded bg-green-600" />
+        <span className="text-white text-sm">Good</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded bg-orange-600" />
+        <span className="text-white text-sm">Alert</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded bg-red-600" />
+        <span className="text-white text-sm">Critical</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded bg-slate-600" />
+        <span className="text-white text-sm">Archived</span>
+      </div>
+      </div>
     </div>
   );
 }

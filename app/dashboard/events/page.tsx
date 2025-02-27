@@ -107,6 +107,8 @@ export default function EventsPage() {
           agentNames,
           arsenalNames,
           agents: data.agents || [],
+          agentsAccepted: data.agentsAccepted || [],
+          agentsDeclined: data.agentsDeclined || [],
           arsenal: data.arsenal || [],
           contactNumber: data.contactNumber || "",
           contactPerson: data.contactPerson || "",
@@ -121,6 +123,7 @@ export default function EventsPage() {
           notes: data.notes || "",
           hqt: data.hqt || "",
           aop: data.aop || "",
+          collection: data.collection || "",
           isArchive: data.isArchive || false,
         };
       });
@@ -171,33 +174,56 @@ export default function EventsPage() {
 
     // Creating the event data with only eventName and placeholders for other fields
     const newEvent = {
-      eventName: newEventName,
-      location: "",
       agents: [],
+      agentsAccepted: [],
+      agentsDeclined: [],
       arsenal: [],
       contactNumber: "",
       contactPerson: "",
+      dateAdded: Timestamp.now(),
+      eventDate: eventDate,
+      eventName: newEventName,
+      location: "",
       package: "",
       layout: "",
-      eventDate: "",
       sdCardCount: 0,
       batteryCount: 0,
+      notes: "",
       hqt: "",
       aop: "",
-      dateAdded: Timestamp.now(),
+      collection: "",
       isArchive: false,
     };
 
     try {
       // Add the new event to Firestore
-      const docRef = await addDoc(collection(firestoreDB, "events"), newEvent);
-      const newEventId = docRef.id;
+      const eventDocRef = await addDoc(collection(firestoreDB, "events"), newEvent);
+      const newEventId = eventDocRef.id;
+
+      // Add the new review to Firestore baesd on the eventRef
+      const newReview = {
+        eventId: eventDocRef,
+        rating: 0,
+        review: "",
+        report: ""
+      }
+
+      const reviewDocRef = await addDoc(collection(firestoreDB, "reviews"), newReview);
 
       // Add to realtimeDB
       const eventRef = ref(realtimeDB, `/chats/${newEventId}`);
       await set(eventRef, {
         info: {
+          checklist: {
+            arrivalHQ: { completed: false, timestamp: 0 },
+            arrivalEvent: { completed: false, timestamp: 0 },
+            setupDone: { completed: false, timestamp: 0 },
+            cleanup: { completed: false, timestamp: 0 },
+            returnHQ: { completed: false, timestamp: 0 },
+          },
           name: newEvent.eventName,
+          notes: "",
+          status: "",
           createdAt: Timestamp.now(),
         },
         messages: {},

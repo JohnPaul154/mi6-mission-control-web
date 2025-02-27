@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ProfileCard } from "@/components/profile-card";
-import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive, Search } from "lucide-react"; // Import Plus icon from Lucide
+import { Plus, Trash2, Pencil, Eye, EyeOff, CircleHelp, Archive, Search, CircleAlert } from "lucide-react"; // Import Plus icon from Lucide
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"; // Import AlertDialog components
 
 import { getDocs, collection, getDoc, doc, addDoc, query, where, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
@@ -19,6 +19,7 @@ import { AgentData } from "@/firebase/collection-types";
 import { useSession } from "@/contexts/SessionContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import StarRating from "@/components/star-rating";
 
 type AgentDataMini = {
   id: string;
@@ -48,6 +49,7 @@ export default function AgentListPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentData | null>(null);
   const [shouldRefetch, setShouldRefetch] = useState(false);
   const [search, setSearch] = useState("");
+  const [agentRating, setAgentRating] = useState(0);
 
   // Add state for new agent details
   const [firstName, setFirstName] = useState("");
@@ -61,6 +63,7 @@ export default function AgentListPage() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [birthday, setBirthday] = useState("");
   const [dateHired, setDateHired] = useState("");
+  const [suspensionEndDate, setSuspensionEndDate] = useState("");
 
   // Fetch agents when the component mounts
   const getAllAgents = async (): Promise<any[]> => {
@@ -81,7 +84,8 @@ export default function AgentListPage() {
             console.warn(`Invalid data for agent ${id}:`, data);
             return { id }; // Return only the ID if the data is invalid
           }
-        });
+        })
+          .filter(agent => agent.id !== "system");
 
         console.log("Agents retrieved successfully:", agents);
         return agents;
@@ -100,12 +104,17 @@ export default function AgentListPage() {
       const docRef = doc(firestoreDB, "agents", id); // Reference to the specific agent
       const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
+      const ratingRef = ref(realtimeDB, `agents/${id}`); // Adjust the path as needed
+      const snapshot = await get(ratingRef);
+
+      if (docSnap.exists() && snapshot.exists()) {
         setIsEditing(false);
         setSelectedAgent({ id, ...docSnap.data() } as AgentData);
         setBirthday(docSnap.data().birthday || "");
-        setDateHired(docSnap.data().dateHired || "")
+        setDateHired(docSnap.data().dateHired || "");
+        setSuspensionEndDate(docSnap.data().suspensionEndDate || "");
         setPassword(docSnap.data().password);
+        setAgentRating(snapshot.val().rating/snapshot.val().ratingCount || 0)
       } else {
         console.log("No such agent!");
       }
@@ -116,7 +125,7 @@ export default function AgentListPage() {
 
   useEffect(() => {
     const fetchAgents = async () => {
-      const agentsData = await getAllAgents();
+      const agentsData = (await getAllAgents() as AgentDataMini[]).filter(item => !item.hasOwnProperty("system"));
 
       const filteredAgents = agentsData.filter((agent: AgentDataMini) => {
         if (search && search.trim() !== "") {
@@ -175,6 +184,8 @@ export default function AgentListPage() {
         password: new_password,
         isNew: true,
         isArchive: false,
+        isSuspended: false,
+        suspensionEndDate: "",
       };
 
       // send mail to new user
@@ -208,7 +219,9 @@ export default function AgentListPage() {
         position: newAgent.position,
         name: `${newAgent.firstName} ${newAgent.lastName}`,
         email: newAgent.email,
-        avatar: newAgent.avatar
+        avatar: newAgent.avatar,
+        rating: 0,
+        ratingCount: 0
       });
 
       // Step 5: Reset form fields after adding the agent
@@ -235,8 +248,8 @@ export default function AgentListPage() {
 
   const handleCancelChanges = () => {
     setPassword('');
-    setIsEditing(false)
-    setShouldRefetch(!shouldRefetch)
+    setIsEditing(false);
+    setShouldRefetch(!shouldRefetch);
   }
 
   const handleSaveChanges = async () => {
@@ -329,6 +342,34 @@ export default function AgentListPage() {
     }
   }
 
+  const handleSuspendAgent = async () => {
+    try {
+      const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
+      await updateDoc(docRef, {
+        isSuspended: true,
+        suspensionEndDate: suspensionEndDate
+      });
+      setShouldRefetch(!shouldRefetch);
+      fetchAgentDetails(selectedAgent!.id || "");
+    } catch (error) {
+      console.error("Error suspending agent:", error);
+    }
+  }
+
+  const handleUnsuspendAgent = async () => {
+    try {
+      const docRef = doc(firestoreDB, "agents", selectedAgent!.id || "");
+      await updateDoc(docRef, {
+        isSuspended: false,
+        suspensionEndDate: ""
+      });
+      setShouldRefetch(!shouldRefetch);
+      fetchAgentDetails(selectedAgent!.id || "");
+    } catch (error) {
+      console.error("Error unsuspending agent:", error);
+    }
+  }
+
   const handleavatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -340,6 +381,16 @@ export default function AgentListPage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const getSuspensionDays = (suspensionEndDate: string | null): number => {
+    if (!suspensionEndDate) return 0;
+
+    const today = new Date();
+    const endDate = new Date(suspensionEndDate);
+
+    const diffInMs = endDate.getTime() - today.getTime();
+    return Math.ceil(diffInMs / (1000 * 60 * 60 * 24)); // Convert ms to days
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
@@ -357,6 +408,12 @@ export default function AgentListPage() {
         dateHired: newDate
       });
       setDateHired(newDate);
+    } else if (field === "suspensionEndDate") {
+      setSelectedAgent({
+        ...selectedAgent!,
+        suspensionEndDate: newDate
+      });
+      setSuspensionEndDate(newDate);
     }
   };
 
@@ -493,6 +550,11 @@ export default function AgentListPage() {
               {selectedAgent ? (
                 <Card className="w-full h-full flex flex-col">
                   <CardContent className="p-6 ">
+                    {/^\d{4}-\d{2}-\d{2}$/.test(suspensionEndDate) && selectedAgent.isSuspended && (
+                      <div className="w-full p-4 border border-red-500 text-red-400 rounded-md mb-4 flex">
+                        <CircleAlert className="mr-2" /> This agent is suspend till {suspensionEndDate}
+                      </div>
+                    )}
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-6 w-full'>
                       {/* Avatar (Profile Picture) */}
                       <div className="sm:col-span-2 mb-6 flex flex-col items-center">
@@ -522,6 +584,10 @@ export default function AgentListPage() {
                           className="hidden"
                           onChange={handleavatarChange}
                         />
+                      </div>
+
+                      <div className="sm:col-span-2 mb-6 flex flex-col items-center">
+                        <StarRating rating={agentRating} />
                       </div>
 
                       {/* First Name Field */}
@@ -695,6 +761,7 @@ export default function AgentListPage() {
                     {isAdmin && (
                       isEditing ? (
                         <div>
+                          {/* Edit | Save */}
                           <AlertDialog>
                             <AlertDialogTrigger className="bg-zinc-700 text-white border h-9 font-medium gap-2 px-4 py-2 rounded-md text-sm mr-4">
                               Cancel
@@ -728,9 +795,66 @@ export default function AgentListPage() {
                           </AlertDialog>
                         </div>
                       ) : (
-                        <button onClick={() => setIsEditing(true)} className="p-2 bg-zinc-500 text-white rounded-md">
-                          Edit Profile
-                        </button>
+                        <div>
+                          {selectedAgent.isSuspended ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger className="bg-red-600 text-white border h-10 font-medium gap-2 px-3 py-2 rounded-md text-sm mr-4">
+                                Unsuspend
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Unsuspend Agent</AlertDialogTitle>
+                                </AlertDialogHeader>
+                                <p>
+                                  Are you sure you want to unsuspend this agent?
+                                </p>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleUnsuspendAgent} className="bg-red-600 text-white hover:bg-red-500">Confirm</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger className="bg-red-600 text-white border h-10 font-medium gap-2 px-3 py-2 rounded-md text-sm mr-4">
+                                Suspend
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Suspend Agent</AlertDialogTitle>
+                                </AlertDialogHeader>
+                                <label className="block mb-1">Date of Event</label>
+                                <input
+                                  type="date"
+                                  className="border p-2 w-full"
+                                  value={selectedAgent.suspensionEndDate || ""}
+                                  onChange={(e) => { handleDateChange(e, "suspensionEndDate") }}
+                                  min={new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" })}
+                                />
+
+                                {/^\d{4}-\d{2}-\d{2}$/.test(suspensionEndDate) ? (
+                                  <p>
+                                    Are you sure you want to suspend this agent for <span className=" font-bold">{getSuspensionDays(suspensionEndDate)} days</span>?
+                                  </p>
+                                ) : (
+                                  <p className="text-zinc-400">
+                                    Please select a date
+                                  </p>
+                                )}
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleSuspendAgent} className="bg-red-600 text-white hover:bg-red-500">Confirm</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                          {/* Edit | Save */}
+
+                          <Button onClick={() => setIsEditing(true)} className="p-2 h-10 bg-zinc-500 text-white rounded-md">
+                            Edit Profile
+                          </Button>
+                        </div>
+
                       )
                     )}
                   </CardFooter>
