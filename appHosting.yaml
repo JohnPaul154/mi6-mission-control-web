@@ -1,11 +1,6 @@
-# appHosting.yaml - Firebase App Hosting Configuration
-
 version: 1
 deploy:
-  runtime: nodejs18 # Ensure you're using a supported Node.js version
-  installCommand: npm install --force # Force install dependencies
+  runtime: nodejs22 # Ensure you're using a supported Node.js version
+  installCommand: npm ci --force # Force install dependencies
   buildCommand: npm run build # Build the Next.js app
   outputDirectory: .next # Output directory for Next.js
-  rewrites:
-    - source: "**" # Catch-all rewrite rule
-      destination: "/index.html" # Serve Next.js app
