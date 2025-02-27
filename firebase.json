@@ -1,6 +1,7 @@
 {
   "hosting": {
-    "public": ".next",
+    "source": ".next",
+    "public": "public",
     "rewrites": [
       {
         "source": "**",
