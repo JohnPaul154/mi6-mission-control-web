@@ -3,7 +3,7 @@
     "predeploy": [
       "npm install --force"
     ],
-    "public": ".next",
+    "public": "out",
     "ignore": [
       "firebase.json",
       "**/.*",
