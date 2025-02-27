@@ -1,5 +1,8 @@
 {
   "hosting": {
+    "predeploy": [
+      "npm install --force"
+    ],
     "public": ".next",
     "ignore": [
       "firebase.json",
