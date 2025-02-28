@@ -19,13 +19,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"; // Import AlertDialog components
-import { set, ref } from "firebase/database";
+import { set, ref, get } from "firebase/database";
 import { useSession } from "@/contexts/SessionContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { sendNotification } from "@/lib/sendNotification";
+
+interface Agent {
+  name: string;
+  token: string;
+}
+
 
 export default function EventsPage() {
-
   const router = useRouter();
 
   const { session } = useSession();
@@ -159,6 +165,46 @@ export default function EventsPage() {
     setRefetch(!refetch);
   };
 
+  const sendPushNotification = async (eventName: string, date: string) => {
+    try {
+      // get all users TOKENS in realtimeDB
+      const agentsRef = ref(realtimeDB, "/agents/");
+
+      const snapshot = await get(agentsRef);
+
+      if (snapshot.exists()) {
+        const agentsData: Record<string, Agent> = snapshot.val();
+        const filteredAgents = Object.entries(agentsData) 
+          .filter(([_, agent]) => agent.token)
+          .map(([id, agent]) => ({
+            id,
+            name: agent.name,
+            token: agent.token,
+        }));
+  
+        for(let i = 0; i < filteredAgents.length; i++) {
+          const agentToken = filteredAgents[i].token;
+          const docRef = doc(firestoreDB, "agents", filteredAgents[i].id);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            if(userData.isSuspended === false) {
+              await sendNotification(agentToken, "New Event", `${eventName} - ${date}`);
+            }
+          }
+        }
+
+        return filteredAgents;
+      } else {
+        return [];
+      }
+
+    } catch (error) {
+      //console.error(`Error sending push notification to agent ${agentId}:`, error);
+    }
+  };
+
   // Handle adding a new event
   const handleAddEvent = async () => {
     // Check if both fields are filled
@@ -233,6 +279,14 @@ export default function EventsPage() {
       router.push(`/dashboard/events/${newEventId}?edit=true`);
 
       fetchEvents();
+
+      const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      
+      await sendPushNotification(newEventName, formattedDate);
     } catch (error) {
       console.error("Error adding event:", error);
     }
