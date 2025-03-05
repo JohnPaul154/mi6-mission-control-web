@@ -40,9 +40,11 @@ export default function OTP() {
 
   const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
-  
 
   const { session, setSession } = useSession();
+
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   // Redirect if session exists
   useEffect(() => {
@@ -51,6 +53,30 @@ export default function OTP() {
     }
   }, [session, router]);
 
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!data1) return;
+
+      try {
+        const userRef = doc(firestoreDB, "agents", data1);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          setUserName(userData.firstName + " " + userData.lastName);
+          setUserEmail(userData.email);
+        } else {
+          setError("User not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+        setError("Failed to fetch user data.");
+      }
+    };
+
+    fetchUserData();
+  }, [data1]);
 
   // Function to handle login logic
   const handleOTP = async () => {
@@ -98,10 +124,10 @@ export default function OTP() {
           <form>
             <div className="space-y-4">
               <h3>
-                Hi <strong>Name Here</strong> !
+                Hi <strong>{`${userName ?  userName : 'Unknown'}`}</strong> !
               </h3>
               <p>
-                To verify your identity, we've sent a one-time password (OTP) to name@email.com
+                {`To verify your identity, we've sent a one-time password (OTP) to ${userEmail ?  userEmail : 'unknown email'}.`}
               </p>
               <div>
                 <label htmlFor="otp" className="block text-sm font-medium">

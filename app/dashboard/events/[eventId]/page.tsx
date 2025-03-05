@@ -196,6 +196,13 @@ export default function EventPage() {
 
         console.log("Event data updated successfully!");
         setIsEditable(false); // Exit edit mode after saving
+        
+        if(event.agentsAccepted.length > 0) {
+          for(let i = 0; i < event.agents.length; i++) {
+            await sendPushNotification(event.agents[i].id);
+          }
+        }
+
         router.push("/dashboard/events");
       } catch (error) {
         console.error("Error saving event data:", error);
@@ -348,11 +355,7 @@ export default function EventPage() {
         };
       });
 
-      // **Step 4: Send push notification**
-      sendPushNotification(selectedAgent.id);
-
       console.log("Event updated with new agent!");
-
     } catch (error) {
       console.error("Error adding agent to event:", error);
     }
