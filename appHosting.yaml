@@ -1,6 +1,0 @@
-version: 1
-deploy:
-  runtime: nodejs22 # Ensure you're using a supported Node.js version
-  installCommand: npm ci --force # Force install dependencies
-  buildCommand: npm run build # Build the Next.js app
-  outputDirectory: .next # Output directory for Next.js
