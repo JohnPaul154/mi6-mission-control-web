@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { firestoreDB, realtimeDB } from "@/firebase/init-firebase";
-import { updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { updateDoc, doc, deleteDoc, query, collection, where, getDocs } from "firebase/firestore";
 import { remove, ref, onValue } from "firebase/database";
 
 interface EventCardProps {
@@ -122,6 +122,11 @@ export function EventCard({
     try {
       const docRef = doc(firestoreDB, "events", id);
       await deleteDoc(docRef);
+      const q = query(collection(firestoreDB, "reviews"), where("eventId", "==", docRef));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
       onUpdate();
       const dataRef = ref(realtimeDB, `chats/${id}`); // Replace with your data path
       remove(dataRef)

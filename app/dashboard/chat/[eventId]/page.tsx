@@ -23,6 +23,7 @@ import { realtimeDB, firestoreDB } from "@/firebase/init-firebase";
 import { useRouter, useParams } from "next/navigation";
 import { doc, getDoc, Timestamp, DocumentReference } from "firebase/firestore";
 import { EventData, AgentData, ArsenalData } from "@/firebase/collection-types"
+import { toast } from "sonner"
 
 const convertTo12HourFormat = (time24: string): string => {
   if (time24 == "") {
@@ -222,7 +223,15 @@ export default function EventChatPage() {
           const data = snapshot.val();
 
           // Define the fixed order
-          const order = ["arrivalHQ", "arrivalEvent", "setupDone", "cleanup", "returnHQ"];
+          const order = [
+            "arrivalHQ", 
+            "onTheWayToEvent", 
+            "arrivalEvent", 
+            "setupDone", 
+            "missionComplete", 
+            "cleanup", 
+            "onTheWayToHQ",
+            "returnHQ"];
 
           // Sort checklist based on the defined order
           const sortedChecklist = Object.fromEntries(
@@ -263,16 +272,21 @@ export default function EventChatPage() {
       await update(ref(realtimeDB, `chats/${eventId}/info/checklist`), { [key]: { completed: true, timestamp } });
       if (key === "arrivalHQ") {
         await sendMessage(currentChat!.id, "system", `All team members arrived at HQ at ${formatDate(timestamp)}`);
+      } else if (key === "onTheWayToEvent") {
+        await sendMessage(currentChat!.id, "system", `Team on the way to event venue at ${formatDate(timestamp)}`);
       } else if (key === "arrivalEvent") {
-        await sendMessage(currentChat!.id, "system", `All team members arrived at the event venue at ${formatDate(timestamp)}`);
+        await sendMessage(currentChat!.id, "system", `Team arrived at the event venue at ${formatDate(timestamp)}`);
       } else if (key === "setupDone") {
-        await sendMessage(currentChat!.id, "system", `Finished setting up all equipments at ${formatDate(timestamp)}`);
+        await sendMessage(currentChat!.id, "system", `Finished set up to on deck at ${formatDate(timestamp)}`);
+      } else if (key === "missionComplete") {
+        await sendMessage(currentChat!.id, "system", `Mission completed at ${formatDate(timestamp)}`);
       } else if (key === "cleanup") {
         await sendMessage(currentChat!.id, "system", `Finished packing up and inventory at ${formatDate(timestamp)}`);
+      } else if (key === "onTheWayToHQ") {
+        await sendMessage(currentChat!.id, "system", `Team on the way back to HQ at ${formatDate(timestamp)}`);
       } else if (key === "returnHQ") {
-        await sendMessage(currentChat!.id, "system", `All team members returned to HQ at ${formatDate(timestamp)}`);
-      } 
-      
+        await sendMessage(currentChat!.id, "system", `All team members has returned to HQ at ${formatDate(timestamp)}`);
+      }
     } catch (error) {
       console.error("Error updating checklist:", error);
     }
@@ -371,11 +385,33 @@ export default function EventChatPage() {
                     />
                     <div className="flex flex-col">
                       <label className="text-sm">Arrived at HQ (Full Team)</label>
-                      {checklist?.setupDone?.timestamp !== undefined && (
+                      {checklist?.arrivalHQ?.timestamp !== undefined && (
                         <span className="text-gray-500 text-xs">
                           {checklist.arrivalHQ.timestamp === 0
                             ? "Not yet done"
                             : `(${formatDate(checklist.arrivalHQ.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* Arrived at Event */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.onTheWayToEvent?.completed || false}
+                      disabled={checklist?.onTheWayToEvent?.completed || false}
+                      onChange={() => handleCheckboxChange("onTheWayToEvent")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">On the way to Event</label>
+                      {checklist?.onTheWayToEvent?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.onTheWayToEvent.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.onTheWayToEvent.timestamp)})`}
                         </span>
                       )}
                     </div>
@@ -425,6 +461,28 @@ export default function EventChatPage() {
                     </div>
                   </div>
                 </div>
+                {/* Mission Complete */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.missionComplete?.completed || false}
+                      disabled={checklist?.missionComplete?.completed || false}
+                      onChange={() => handleCheckboxChange("missionComplete")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">Mission Completed</label>
+                      {checklist?.missionComplete?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.missionComplete.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.missionComplete.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 {/* Finished Cleanup */}
                 <div className="mt-2">
                   <div className="flex items-center space-x-2">
@@ -442,6 +500,28 @@ export default function EventChatPage() {
                           {checklist.cleanup.timestamp === 0
                             ? "Not yet done"
                             : `(${formatDate(checklist.cleanup.timestamp)})`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {/* On the way back to HQ */}
+                <div className="mt-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={checklist?.onTheWayToHQ?.completed || false}
+                      disabled={checklist?.onTheWayToHQ?.completed || false}
+                      onChange={() => handleCheckboxChange("onTheWayToHQ")}
+                      className="h-5 w-5"
+                    />
+                    <div className="flex flex-col">
+                      <label className="text-sm">On the way back to HQ</label>
+                      {checklist?.onTheWayToHQ?.timestamp !== undefined && (
+                        <span className="text-gray-500 text-xs">
+                          {checklist.onTheWayToHQ.timestamp === 0
+                            ? "Not yet done"
+                            : `(${formatDate(checklist.onTheWayToHQ.timestamp)})`}
                         </span>
                       )}
                     </div>
@@ -568,7 +648,16 @@ export default function EventChatPage() {
 
               {/* Arsenal */}
               <Button className="mb-4" onClick={() => { router.push(`/dashboard/events/${eventId}/report`) }}>See Full Report</Button>
-              <Button onClick={() => { router.push(`/dashboard/events/${eventId}/review`) }}>Get Review</Button>
+              <Button
+              onClick={() => {
+                const link = `${window.location.origin}/customer/${eventId}`;
+                navigator.clipboard.writeText(link)
+                  .then(() => toast('Link copied to clipboard!'))
+                  .catch((err) => console.error('Failed to copy: ', err));
+              }}
+            >
+              Copy Review Link
+            </Button>
             </PopoverContent>
           </Popover>
         </CardHeader>

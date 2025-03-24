@@ -22,9 +22,11 @@ const defaultChatValues = {
   info: {
     checklist: {
       arrivalHQ: { completed: "", timestamp: 0 },
+      onTheWayToEvent: { completed: "", timestamp: 0 },
       arrivalEvent: { completed: "", timestamp: 0 },
       setupDone: { completed: "", timestamp: 0 },
       cleanup: { completed: "", timestamp: 0 },
+      onTheWayToHQ: { completed: "", timestamp: 0 },
       returnHQ: { completed: "", timestamp: 0 },
     },
     createdAt: Date.now(),

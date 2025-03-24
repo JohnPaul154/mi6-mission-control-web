@@ -506,6 +506,11 @@ export default function EventPage() {
     try {
       const docRef = doc(firestoreDB, "events", event.id!);
       await deleteDoc(docRef);
+      const q = query(collection(firestoreDB, "reviews"), where("eventId", "==", docRef));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
       const dataRef = ref(realtimeDB, `chats/${event.id}`); // Replace with your data path
       remove(dataRef)
       router.push("/dashboard/archive");

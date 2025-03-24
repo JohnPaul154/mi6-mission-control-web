@@ -191,22 +191,6 @@ export default function Review() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button className="mt-4 w-full" disabled={Boolean(review?.rating && review?.rating !== 0 && review?.review)}>Save Review</Button>
-                  </AlertDialogTrigger>
-
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Save Report</AlertDialogTitle>
-                    </AlertDialogHeader>
-                    Save your changes to the report of this event?
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
               </div>
             </CardDescription>
           </CardContent>

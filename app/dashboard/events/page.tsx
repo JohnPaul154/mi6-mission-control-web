@@ -262,9 +262,12 @@ export default function EventsPage() {
         info: {
           checklist: {
             arrivalHQ: { completed: false, timestamp: 0 },
+            onTheWayToEvent: { completed: false, timestamp: 0 },
             arrivalEvent: { completed: false, timestamp: 0 },
             setupDone: { completed: false, timestamp: 0 },
+            missionComplete: { completed: false, timestamp: 0 },
             cleanup: { completed: false, timestamp: 0 },
+            onTheWayToHQ: { completed: false, timestamp: 0 },
             returnHQ: { completed: false, timestamp: 0 },
           },
           name: newEvent.eventName,
