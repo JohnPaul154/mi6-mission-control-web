@@ -279,7 +279,8 @@ export default function CustomerPage() {
         {/* Header */}
         <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between border-b-2">
           <div>
-            <h3 className="text-sm ">Team: {event?.agentNames?.join(", ") || "No Agents Assigned"}</h3>
+            <h2 className="text-sm font-bold">Team Leader: {event?.agentNames?.[0] || "No Agents Assigned"}</h2>
+            <h3 className="text-sm ">Team: {event?.agentNames?.slice(1).join(", ") || "No Agents Assigned"}</h3>
           </div>
         </CardHeader>
         <div className="px-4">

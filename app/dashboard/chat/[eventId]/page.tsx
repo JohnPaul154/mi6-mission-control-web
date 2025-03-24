@@ -323,7 +323,7 @@ export default function EventChatPage() {
         <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between border-b-2">
           <div>
             <CardTitle className="text-lg font-semibold">Event: {event?.eventName}</CardTitle>
-            <h3 className="text-sm ">Team: {event?.agentNames?.join(", ") || "No Agents Assigned"}</h3>
+            <h3 className="text-sm ">Team Leader: {event?.agentNames?.[0] || "No Agents Assigned"}</h3>
           </div>
 
           <Popover>
@@ -331,6 +331,12 @@ export default function EventChatPage() {
               <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700" />
             </PopoverTrigger>
             <PopoverContent className="flex flex-col p-4 max-h-[50vh] overflow-y-auto">
+
+              {/* Status */}
+              <h2 className="text-2xl self-center font-semibold pb-2 mb-2">Members</h2>
+              <p className="p-2 mb-4 border rounded-md">
+                {event?.agentNames?.slice(1).join("\n") || "No Agents Assigned"}
+              </p>
 
               {/* Status */}
               <h2 className="text-2xl self-center font-semibold pb-2 mb-2">Status</h2>
