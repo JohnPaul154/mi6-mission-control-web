@@ -264,8 +264,6 @@ export default function CustomerPage() {
           await Promise.all(agents.map(agentRef => 
             updateRatingRealtimeDB(agentRef.id, rating)
           ));
-  
-          router.back();
         } catch (error) {
           console.error("Error saving event data:", error);
         }
