@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Undo2 } from "lucide-react";
 import { useChat } from '@/contexts/ChatContext';
 import { useSession } from "@/contexts/SessionContext";
 import { get, onValue, ref, set, update } from "firebase/database";
@@ -62,6 +62,7 @@ export default function EventChatPage() {
   // Global states
   const [shouldRefetch, setShouldRefetch] = useState(false);
   const [event, setEvent] = useState<EventData | null>(null);
+  const [cstView, setCstView] = useState(false);
 
   // Message states
   const [message, setMessage] = useState("");
@@ -130,7 +131,7 @@ export default function EventChatPage() {
   // Set current chat ID
   useEffect(() => {
     setCurrentChat({ id: eventId });
-  }, [setCurrentChat]);
+  }, []);
 
   // Fetch agents when the component mounts
   const getAllAgents = async (): Promise<any[]> => {
@@ -326,11 +327,16 @@ export default function EventChatPage() {
             <h3 className="text-sm ">Team Leader: {event?.agentNames?.[0] || "No Agents Assigned"}</h3>
           </div>
 
+          {cstView ? (
+            <button onClick={() => {setCurrentChat({id: eventId}); setCstView(false);}} title="Back to team chat"><Undo2></Undo2></button>
+          ) : (
           <Popover>
             <PopoverTrigger>
               <MoreVertical className="w-6 h-6 cursor-pointer hover:text-gray-700" />
             </PopoverTrigger>
             <PopoverContent className="flex flex-col p-4 max-h-[50vh] overflow-y-auto">
+
+              <Button className="mb-4" onClick={() => { setCurrentChat({id: `${eventId}-CST`}); setCstView(true); }}>Customer Chat</Button>
 
               {/* Status */}
               <h2 className="text-2xl self-center font-semibold pb-2 mb-2">Members</h2>
@@ -666,6 +672,8 @@ export default function EventChatPage() {
             </Button>
             </PopoverContent>
           </Popover>
+          )
+        }
         </CardHeader>
 
         {/* Message Container */}

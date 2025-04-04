@@ -278,6 +278,27 @@ export default function EventsPage() {
         messages: {},
       });
 
+      const eventCustRef = ref(realtimeDB, `/chats/${newEventId}-CST`);
+      await set(eventCustRef, {
+        info: {
+          checklist: {
+            arrivalHQ: { completed: false, timestamp: 0 },
+            onTheWayToEvent: { completed: false, timestamp: 0 },
+            arrivalEvent: { completed: false, timestamp: 0 },
+            setupDone: { completed: false, timestamp: 0 },
+            missionComplete: { completed: false, timestamp: 0 },
+            cleanup: { completed: false, timestamp: 0 },
+            onTheWayToHQ: { completed: false, timestamp: 0 },
+            returnHQ: { completed: false, timestamp: 0 },
+          },
+          name: newEvent.eventName,
+          notes: "",
+          status: "",
+          createdAt: Timestamp.now(),
+        },
+        messages: {},
+      });
+
       // Redirect to the newly created event's page
       router.push(`/dashboard/events/${newEventId}?edit=true`);
 
