@@ -6,6 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useRef, useEffect } from "react";
@@ -56,7 +57,7 @@ export default function CustomerPage() {
   const router = useRouter();
   const params = useParams();
   const { eventId } = params as { eventId: string };
-  
+
   // Chat parameters
   const { currentChat, setCurrentChat, sendMessage } = useChat();
   const { session } = useSession();
@@ -71,6 +72,7 @@ export default function CustomerPage() {
   const [rating, setRating] = useState<number>(0);
   const [event, setEvent] = useState<EventData | null>(null);
   const [agents, setAgents] = useState<DocumentReference[]>([]);
+  const [missingEvent, setMissingEvent] = useState(false);
 
   // Message states
   const [checklist, setChecklist] = useState<{ [key: string]: { completed: boolean; timestamp: number } }>({});
@@ -122,6 +124,7 @@ export default function CustomerPage() {
             });
           } else {
             console.error("Event not found");
+            setMissingEvent(true);
           }
         } catch (error) {
           console.error("Error fetching event data:", error);
@@ -135,108 +138,112 @@ export default function CustomerPage() {
 
   // Set current chat ID
   useEffect(() => {
-    setCurrentChat({ id: `${eventId}-CST` });
+    if (missingEvent == false) {
+      setCurrentChat({ id: `${eventId}-CST` });
+    }
   }, []);
 
   // Fetch checklist from Firebase
   useEffect(() => {
-    const fetchChecklist = async () => {
-      try {
-        const snapshot = await get(ref(realtimeDB, `chats/${eventId}/info/checklist`));
-        if (snapshot.exists()) {
-          const data = snapshot.val();
+    if (missingEvent == false) {
+      const fetchChecklist = async () => {
+        try {
+          const snapshot = await get(ref(realtimeDB, `chats/${eventId}/info/checklist`));
+          if (snapshot.exists()) {
+            const data = snapshot.val();
 
-          // Define the fixed order
-          const order = [
-            "arrivalHQ", 
-            "onTheWayToEvent", 
-            "arrivalEvent", 
-            "setupDone", 
-            "missionComplete", 
-            "cleanup", 
-            "onTheWayToHQ",
-            "returnHQ"];
+            // Define the fixed order
+            const order = [
+              "arrivalHQ",
+              "onTheWayToEvent",
+              "arrivalEvent",
+              "setupDone",
+              "missionComplete",
+              "cleanup",
+              "onTheWayToHQ",
+              "returnHQ"];
 
-          // Sort checklist based on the defined order
-          const sortedChecklist = Object.fromEntries(
-            order
-              .filter((key) => key in data) // Ensure only existing keys are included
-              .map((key) => [key, data[key]]) // Map to key-value pairs
-          );
+            // Sort checklist based on the defined order
+            const sortedChecklist = Object.fromEntries(
+              order
+                .filter((key) => key in data) // Ensure only existing keys are included
+                .map((key) => [key, data[key]]) // Map to key-value pairs
+            );
 
-          console.log(sortedChecklist)
+            console.log(sortedChecklist)
 
-          setChecklist(sortedChecklist);
+            setChecklist(sortedChecklist);
+          }
+        } catch (error) {
+          console.error("Error fetching checklist:", error);
         }
-      } catch (error) {
-        console.error("Error fetching checklist:", error);
-      }
-    };
+      };
 
-    fetchChecklist();
+      fetchChecklist();
+    }
   }, [eventId]);
 
   useEffect(() => {
-      if (eventId) {
-  
-        const eventRef = doc(firestoreDB, "events", eventId);
-  
-        console.log(eventRef.id)
+    if (eventId && !missingEvent) {
 
-        // Fetch event details and fill fields
-        const fetchReview = async () => {
-          try {
-            const q = query(collection(firestoreDB, "reviews"), where("eventId", "==", eventRef));
-            const querySnapshot = await getDocs(q);
-  
-            if (!querySnapshot.empty) {
-              const docSnap = querySnapshot.docs[0]; // Get the first matching document
-              const data = docSnap.data() as ReviewData;
-  
-              setReview({
-                id: docSnap.id,
-                ...data, // Spread all other properties from data
-              });
-  
-              setRating(data.rating)
-  
-              const agentList: DocumentReference[] = await getAgentsFromEvent(eventId);
-  
-              setAgents(agentList)
-  
-            } else {
-              console.error("Review not found for eventID:", eventId);
-            }
-          } catch (error) {
-            console.error("Error fetching event data:", error);
+      const eventRef = doc(firestoreDB, "events", eventId);
+
+      console.log(eventRef.id)
+
+      // Fetch event details and fill fields
+      const fetchReview = async () => {
+        try {
+          const q = query(collection(firestoreDB, "reviews"), where("eventId", "==", eventRef));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            const docSnap = querySnapshot.docs[0]; // Get the first matching document
+            const data = docSnap.data() as ReviewData;
+
+            setReview({
+              id: docSnap.id,
+              ...data, // Spread all other properties from data
+            });
+
+            setRating(data.rating)
+
+            const agentList: DocumentReference[] = await getAgentsFromEvent(eventId);
+
+            setAgents(agentList)
+
+          } else {
+            console.error("Review not found for eventID:", eventId);
           }
-        };
-  
-        fetchReview();
-  
-      }
-    }, [eventId, shouldRefetch]);
+        } catch (error) {
+          console.error("Error fetching event data:", error);
+        }
+      };
+
+      fetchReview();
+
+    }
+  }, [eventId, shouldRefetch]);
 
   const updateRatingRealtimeDB = async (agentId: string, newRating: number) => {
     try {
       const ratingRef = ref(realtimeDB, `agents/${agentId}`); // Adjust the path as needed
       const snapshot = await get(ratingRef);
-  
+
       if (snapshot.exists()) {
         const data = snapshot.val();
         const currentRating = data.rating || 0;
         const ratingCount = data.ratingCount || 0;
-  
+
         // Calculate the new rating (assuming an average rating system)
         const updatedRating = currentRating + newRating;
         const updatedRatingCount = ratingCount + 1;
-  
+
         // Update in Firebase
         await update(ratingRef, {
           rating: updatedRating,
           ratingCount: updatedRatingCount,
         });
-  
+
         console.log("Rating updated successfully!");
       } else {
         console.error("Review not found.");
@@ -250,11 +257,11 @@ export default function CustomerPage() {
     try {
       const eventRef = doc(firestoreDB, "events", eventId);
       const eventSnap = await getDoc(eventRef);
-  
+
       if (eventSnap.exists()) {
         const eventData = eventSnap.data();
         const agentIds: string[] = eventData.agents || []; // Assuming `agents` is an array of IDs
-  
+
         // Convert agent IDs to DocumentReference<AgentData> objects
         return eventData.agents
       } else {
@@ -268,24 +275,26 @@ export default function CustomerPage() {
   };
 
   const handleSaveChanges = async () => {
-      if (review && review.id) {
-        try {
-          const docRef = doc(firestoreDB, "reviews", review.id);
-          await updateDoc(docRef, {
-            rating: rating,
-            review: review.review
-          });
-  
-          console.log("Review data updated successfully!");
-  
-          await Promise.all(agents.map(agentRef => 
-            updateRatingRealtimeDB(agentRef.id, rating)
-          ));
-        } catch (error) {
-          console.error("Error saving event data:", error);
-        }
+    if (review && review.id) {
+      try {
+        const docRef = doc(firestoreDB, "reviews", review.id);
+        await updateDoc(docRef, {
+          rating: rating,
+          review: review.review
+        });
+
+        console.log("Review data updated successfully!");
+
+        await Promise.all(agents.map(agentRef =>
+          updateRatingRealtimeDB(agentRef.id, rating)
+        ));
+
+        window.location.reload();
+      } catch (error) {
+        console.error("Error saving event data:", error);
       }
-    };
+    }
+  };
 
   // Format timestamp
   const formatDate = (timestamp?: number) => {
@@ -295,7 +304,7 @@ export default function CustomerPage() {
 
   // Scroll to the bottom when new messages are added
   useEffect(() => {
-    if (messagesContainerRef.current) {
+    if (messagesContainerRef.current && !missingEvent) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
@@ -315,134 +324,158 @@ export default function CustomerPage() {
   };
 
   return (
-    <div className="min-full h-full flex p-4 flex-1 flex-col">
-      <h1 className="text-3xl font-semibold text-center mb-4 ml-4 min-h-[3%]">{event?.eventName || "Event"}</h1>
-
-      <Card className="w-[50%] h-full max-h-[96%] flex flex-col justify-between self-center">
-
-        {/* Header */}
-        <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between border-b-2">
-          <div>
-            <h2 className="text-sm font-bold">Team Leader: {event?.agentNames?.[0] || "No Agents Assigned"}</h2>
-            <h3 className="text-sm ">Team: {event?.agentNames?.slice(1).join(", ") || "No Agents Assigned"}</h3>
-          </div>
-        </CardHeader>
-        <div className="px-4">
-          <ProgressBar checklist={checklist}/>
-        </div>
-
-        <CardFooter className="flex flex-col flex-none border-t min-h-[5%] p-4">
-        {checklist.missionComplete?.completed ? (
-          <div className="w-full flex flex-col">
-            <h3 className="my-2 self-center">Review</h3>
-            
-            <div className="mb-4 flex justify-center">
-              <StarRatingInput value={rating} onChange={setRating} disabled={Boolean(review?.rating && review?.review)}/>
-            </div>
-              
-            <textarea
-              className="w-full h-[10rem] p-4 border text-white"
-              value={review?.review}
-              disabled={Boolean(review?.rating && review?.review)}
-              onChange={(e) => setReview((prev) => prev ? { ...prev, review: e.target.value } : null)}
-            />
-            <div className="flex flex-row gap-4 w-full">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className="mt-4 w-full" disabled={Boolean(review?.rating && review?.rating !== 0 && review?.review)}>Submit</Button>
-                </AlertDialogTrigger>
-
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Submit Review</AlertDialogTitle>
-                  </AlertDialogHeader>
-                  Submit the review for this event?
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleSaveChanges}>Save</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-        ) : (
-          <Card className="flex flex-col w-full h-[40vh]">
+    <>
+      {missingEvent ? (
+        <div className="min-h-screen w-full p-6 flex flex-1 flex-col items-center justify-center">
+        <h1 className="text-2xl font-semibold mb-6">Event Removed</h1>
+  
+        {/* Vertical Layout for Cards with Padding */}
+        <div className="space-y-6 w-full max-w-xl">
+          {/* Mission Card */}
+          <Card className="p-6">
             <CardHeader>
-              <CardTitle className="pb-4 border-b-2">Real Time Support</CardTitle>
+              <CardTitle>Notice</CardTitle>
             </CardHeader>
-            <CardContent
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 h-full max-h-[80%]"
-            >
-              {messages.map((message, index) => {
-                const agent = getAgentById(message.senderId);
-                const isCurrentUser = message.senderId === "customer";
-                const isLastFromSender = index === messages.length - 1 || messages[index + 1].senderId !== message.senderId;
-
-                return (
-                  <div
-                    key={message.id}
-                    className={`flex ${isCurrentUser ? "justify-end text-right" : "justify-start text-left"} text-wrap`}
-                  >
-                    {/* For the current user's message, only show the text */}
-                    {isCurrentUser ? (
-                      <div className="group relative flex items-center gap-3 max-w-[60%]">
-                        <div className="p-3 rounded-lg bg-blue-200 text-stone-900">
-                          <div>{message.text}</div>
-                        </div>
-                        <div className="text-xs text-gray-400 absolute top-1/2 left-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 max-w-[60%]">
-
-                        {isLastFromSender ? (
-                          <img
-                            src={"https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp"}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-12 h-12" />  // Placeholder div for non-last sender
-                        )}
-
-                        <div>
-                          <div className="group relative">
-                            <div className="p-3 rounded-lg bg-gray-100 text-stone-900 relative flex flex-col">
-                              <div>{message.text}</div>
-                            </div>
-                            <div className="text-xs text-gray-400 absolute top-1/2 right-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </div>
-
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <CardContent>
+              <CardDescription>
+                This Event has been removed
+              </CardDescription>
             </CardContent>
+          </Card>
+        </div>
+      </div>
+      ) : (
+        <div className="min-full h-full flex p-4 flex-1 flex-col">
+          <h1 className="text-3xl font-semibold text-center mb-4 ml-4 min-h-[3%]">{event?.eventName || "Event"}</h1>
 
-            {/* Send Message */}
-            <CardFooter className="flex flex-none gap-2 min-h-[5%]">
-              <Input
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-1"
-                disabled={event?.isArchive}
-              />
-              <Button onClick={handleSendMessage} disabled={event?.isArchive}>Send</Button>
+          <Card className="w-[50%] h-full max-h-[96%] flex flex-col justify-between self-center">
+
+            {/* Header */}
+            <CardHeader className="flex-none min-h-[5%] flex flex-row justify-between border-b-2">
+              <div>
+                <h2 className="text-sm font-bold">Team Leader: {event?.agentNames?.[0] || "No Agents Assigned"}</h2>
+                <h3 className="text-sm ">Team: {event?.agentNames?.slice(1).join(", ") || "No Agents Assigned"}</h3>
+              </div>
+            </CardHeader>
+            <div className="px-4">
+              <ProgressBar checklist={checklist} />
+            </div>
+
+            <CardFooter className="flex flex-col flex-none border-t min-h-[5%] p-4">
+              {checklist.missionComplete?.completed ? (
+                <div className="w-full flex flex-col">
+                  <h3 className="my-2 self-center">Review</h3>
+
+                  <div className="mb-4 flex justify-center">
+                    <StarRatingInput value={rating} onChange={setRating} disabled={Boolean(review?.rating && review?.review)} />
+                  </div>
+
+                  <textarea
+                    className="w-full h-[10rem] p-4 border text-white"
+                    value={review?.review}
+                    disabled={Boolean(review?.rating && review?.review)}
+                    onChange={(e) => setReview((prev) => prev ? { ...prev, review: e.target.value } : null)}
+                  />
+                  <div className="flex flex-row gap-4 w-full">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button className="mt-4 w-full" disabled={Boolean(review?.rating && review?.rating !== 0 && review?.review)}>Submit</Button>
+                      </AlertDialogTrigger>
+
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Submit Review</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        Submit the review for this event?
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction  onClick={handleSaveChanges}>Save</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ) : (
+                <Card className="flex flex-col w-full h-[40vh]">
+                  <CardHeader>
+                    <CardTitle className="pb-4 border-b-2">Real Time Support</CardTitle>
+                  </CardHeader>
+                  <CardContent
+                    ref={messagesContainerRef}
+                    className="flex-1 overflow-y-auto mx-6 flex flex-col space-y-4 h-full max-h-[80%]"
+                  >
+                    {messages.map((message, index) => {
+                      const agent = getAgentById(message.senderId);
+                      const isCurrentUser = message.senderId === "customer";
+                      const isLastFromSender = index === messages.length - 1 || messages[index + 1].senderId !== message.senderId;
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isCurrentUser ? "justify-end text-right" : "justify-start text-left"} text-wrap`}
+                        >
+                          {/* For the current user's message, only show the text */}
+                          {isCurrentUser ? (
+                            <div className="group relative flex items-center gap-3 max-w-[60%]">
+                              <div className="p-3 rounded-lg bg-blue-200 text-stone-900">
+                                <div>{message.text}</div>
+                              </div>
+                              <div className="text-xs text-gray-400 absolute top-1/2 left-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-3 max-w-[60%]">
+
+                              {isLastFromSender ? (
+                                <img
+                                  src={"https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp"}
+                                  className="w-12 h-12 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-12 h-12" />  // Placeholder div for non-last sender
+                              )}
+
+                              <div>
+                                <div className="group relative">
+                                  <div className="p-3 rounded-lg bg-gray-100 text-stone-900 relative flex flex-col">
+                                    <div>{message.text}</div>
+                                  </div>
+                                  <div className="text-xs text-gray-400 absolute top-1/2 right-[-4rem] transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+
+                                </div>
+                              </div>
+
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+
+                  {/* Send Message */}
+                  <CardFooter className="flex flex-none gap-2 min-h-[5%]">
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1"
+                      disabled={event?.isArchive}
+                    />
+                    <Button onClick={handleSendMessage} disabled={event?.isArchive}>Send</Button>
+                  </CardFooter>
+
+                </Card>
+              )
+              }
             </CardFooter>
 
           </Card>
-            )
-          }
-        </CardFooter>
-        
-      </Card>
-    </div>
+        </div>
+      )
+      }
+    </>
   );
 }
