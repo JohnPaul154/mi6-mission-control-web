@@ -573,7 +573,7 @@ export default function EventPage() {
 
                   {isEditable ?
                     <AlertDialog>
-                      <AlertDialogTrigger className="text-white pl-4">
+                      <AlertDialogTrigger className="pl-4">
                         <Undo2 className="h-8 w-8" />
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -595,7 +595,7 @@ export default function EventPage() {
 
                   {isEditable && (
                     <AlertDialog>
-                      <AlertDialogTrigger className="text-white pl-4">
+                      <AlertDialogTrigger className="pl-4">
                         <Save />
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -926,7 +926,7 @@ export default function EventPage() {
                   <AlertDialogTrigger asChild>
                     <button
                       onClick={fetchAllAvailableAgents}
-                      className={`text-white pl-4 ${isEditable ? "" : "hidden"}`}
+                      className={`pl-4 ${isEditable ? "" : "hidden"}`}
                     >
                       <Plus />
                     </button>
@@ -1000,7 +1000,7 @@ export default function EventPage() {
                   <AlertDialogTrigger asChild>
                     <button
                       onClick={fetchAllAvailableArsenal}
-                      className={`text-white pl-4 ${isEditable ? "" : "hidden"}`}
+                      className={`pl-4 ${isEditable ? "" : "hidden"}`}
                     >
                       <Plus />
                     </button>
@@ -1128,7 +1128,7 @@ export default function EventPage() {
                 <Button className="w-1/2" onClick={handleRestore}>Restore</Button>
 
                 {/* Button 2 */}
-                <Button className="bg-gray-600 text-white w-1/2" onClick={handleDelete}>Delete</Button>
+                <Button className="bg-gray-600 w-1/2" onClick={handleDelete}>Delete</Button>
               </div>
             ) : (
               <div className="flex mt-4 space-x-2 w-full">

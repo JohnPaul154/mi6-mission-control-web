@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { sendNotification } from "@/lib/sendNotification";
 import { formatDistanceToNow } from "date-fns";
 
-function getRelativeDate(date: string | number | Date ): string {
+function getRelativeDate(date: string | number | Date | Timestamp ): string {
   try {
     return formatDistanceToNow(new Date(date), { addSuffix: true });
   } catch {
@@ -55,27 +55,6 @@ type NotifCardProps = {
   notifMsg: string;
 };
 
-function NotifCard({ id, dateSent, eventName, notifMsg }: NotifCardProps) {
-  return (
-    <Card key={id} className="w-full mx-auto shadow-md rounded-2xl p-4 cursor-pointer hover:bg-muted" onClick={()=>{}}>
-      <CardContent className="space-y-2">
-        
-
-        <div className="flex items-center gap-2 font-semibold text-lg">
-          <Bell className="w-5 h-5 text-primary" />
-          <span>{eventName}</span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <span>{dateSent}</span>
-        </div>
-
-        <p className="text-sm">{notifMsg}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-
 export default function NotificationsPage() {
   const router = useRouter();
 
@@ -92,6 +71,27 @@ export default function NotificationsPage() {
   const [refetch, setRefetch] = useState(true);
 
   const eventOptions = ["Wedding", "Christmas Party", "Debut", "Birthday"];
+
+  
+  function NotifCard({ id, dateSent, eventName, eventId, notifMsg }: NotifCardProps) {
+    return (
+      <Card key={id} className="w-full mx-auto shadow-md rounded-2xl p-4 cursor-pointer hover:bg-muted" onClick={()=>{router.push(`/dashboard/events/${eventId}`);}}>
+        <CardContent className="space-y-2">
+          
+
+          <div className="flex items-center gap-2 font-semibold text-lg">
+            <Bell className="w-5 h-5 text-primary" />
+            <span>{eventName}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <span>{dateSent}</span>
+          </div>
+
+          <p className="text-sm">{notifMsg}</p>
+        </CardContent>
+      </Card>
+    );
+  }
  
   const triggerUpdate = () => {
     setIsDialogOpen(!isDialogOpen); // Toggle dialog state
