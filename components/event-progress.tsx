@@ -53,7 +53,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ checklist }) => {
                 {i + 1}
               </div>
               <div
-                className={`ml-8 text-md ${checklist[step]?.completed ? 'text-blue-500' : 'text-gray-200'} whitespace-nowrap`}
+                className={`ml-8 text-md ${checklist[step]?.completed ? 'text-blue-500 font-bold' : 'text-black '} whitespace-nowrap`}
               >
                 {stepLabels[step]}
               </div>

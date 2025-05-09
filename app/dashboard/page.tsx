@@ -242,7 +242,7 @@ export default function DashboardPage() {
         eventBorderColor="#00000000"
        
       />
-      <div className="flex gap-4 p-4 my-4 flex-auto justify-between border rounded-md">
+      <div className="flex gap-4 p-4 my-4 flex-auto bg-gray-300 justify-between border rounded-md ">
       <div className="flex items-center gap-2">
         <div className="w-6 h-6 rounded bg-green-600" />
         <span className="text-sm">Good</span>

@@ -347,7 +347,7 @@ export default function EventChatPage() {
               {/* Status */}
               <h2 className="text-2xl self-center font-semibold pb-2 mb-2">Status</h2>
 
-              <div className="w-full p-2 bg-zinc-800 rounded-lg shadow-md mb-4">
+              <div className="w-full p-2 bg-neutral-200 rounded-lg shadow-md mb-4">
                 <div className="flex justify-center gap-2">
                   <button
                     className={`w-24 h-8 px-2 rounded-md text-center text-sm ${status === "good" ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700"
