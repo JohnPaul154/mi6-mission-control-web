@@ -101,18 +101,18 @@ export default function ReviewsPage() {
         collection(firestoreDB, "reviews"),
         where("rating", ">", 0)
       );
-
+  
       const querySnapshot = await getDocs(q);
       const reviewsData: ReviewWithEventData[] = [];
-
+  
       for (const doc of querySnapshot.docs) {
         const review = doc.data() as ReviewData;
-      
+  
         let eventName: string | undefined = undefined;
         let eventDate: string | undefined = undefined;
         let eventId2: string | undefined = undefined;
         let agents: string[] = [];
-      
+  
         if (review.eventId instanceof DocumentReference) {
           const eventDoc = await getDoc(review.eventId);
           if (eventDoc.exists()) {
@@ -120,7 +120,7 @@ export default function ReviewsPage() {
             eventName = event.eventName;
             eventDate = event.eventDate;
             eventId2 = eventDoc.id;
-      
+  
             if (Array.isArray(event.agents)) {
               const agentNamePromises = event.agents.map(async (agentRef: DocumentReference) => {
                 const agentDoc = await getDoc(agentRef);
@@ -131,40 +131,45 @@ export default function ReviewsPage() {
                 }
                 return null;
               });
-      
+  
               const resolvedNames = await Promise.all(agentNamePromises);
-              agents= resolvedNames.filter((name): name is string => !!name); // remove nulls
+              agents = resolvedNames.filter((name): name is string => !!name); // remove nulls
             }
           }
         }
-      
+  
         reviewsData.push({
           id: doc.id,
           ...review,
           eventId2,
           eventName,
           eventDate,
-          agents, // flattened list of full names
+          agents,
         });
-
-        const lowerCaseSearch = searchReview?.trim().toLowerCase();
-        const filteredReviews = reviewsData.filter((review) => {
-          if (lowerCaseSearch && lowerCaseSearch !== "") {
-            return review.eventName?.toLowerCase().includes(lowerCaseSearch);
-          }
-          return true;
-        });
-
-        setReviews(filteredReviews)
       }
-
-      console.log(reviewsData)
-
+  
+      // ✅ Sort by date (newest first)
+      reviewsData.sort((a, b) => {
+        if (!a.eventDate) return 1;
+        if (!b.eventDate) return -1;
+        return new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime();
+      });
+  
+      // Filter after sorting
+      const lowerCaseSearch = searchReview?.trim().toLowerCase();
+      const filteredReviews = reviewsData.filter((review) => {
+        if (lowerCaseSearch && lowerCaseSearch !== "") {
+          return review.eventName?.toLowerCase().includes(lowerCaseSearch);
+        }
+        return true;
+      });
+  
+      setReviews(filteredReviews);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
   };
-
+  
   useEffect(() => {
     fetchReviews();
   }, [trigger]);
