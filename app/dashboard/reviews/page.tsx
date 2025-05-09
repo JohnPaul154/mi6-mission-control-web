@@ -53,7 +53,7 @@ const ReviewCard = ({ id, name, rating, review, date, agents, onUpdate }: Review
   const router = useRouter();
 
   return (
-    <Card className="w-full rounded-2xl shadow-lg border flex justify-between hover:bg-zinc-900 cursor-pointer"  onClick={()=>{router.push(`/customer/${id}`)}}>
+    <Card className="w-full rounded-2xl shadow-lg border flex justify-between hover:bg-neutral-200 cursor-pointer"  onClick={()=>{router.push(`/customer/${id}`)}}>
       <CardContent className="p-6 self-center">
         <div className="text-lg font-semibold">{name}</div>
         <div className="text-sm text-zinc-500 mt-1 mb-4">{date}</div>

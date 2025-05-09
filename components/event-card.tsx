@@ -142,7 +142,7 @@ export function EventCard({
   };
 
   return (
-    <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md hover:bg-zinc-800 cursor-pointer">
+    <Card className="flex w-full max-w-full items-center p-4 shadow-md rounded-md hover:bg-neutral-200 cursor-pointer">
       <CardContent className="w-full p-0">
         <div
           key={id}
@@ -155,7 +155,7 @@ export function EventCard({
           </div>
 
           {/* Event Info Partition */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col pl-4">
             <p className="text-lg font-bold">Event: {eventName}</p>
             <p className="text-sm text-gray-500">Location: {location}</p>
 
@@ -164,12 +164,12 @@ export function EventCard({
               Team:
               {agents.length > 0 ? (
                 agents.map((agent, index) => (
-                  <Badge key={index} className="bg-zinc-200 py-1 px-2 rounded-md">
+                  <Badge key={index} className="bg-zinc-400 py-1 px-2 rounded-md">
                     {agent}
                   </Badge>
                 ))
               ) : (
-                <Badge key={"no-assigned"} className="bg-zinc-200 py-1 px-2 rounded-md">
+                <Badge key={"no-assigned"} className="bg-zinc-400 py-1 px-2 rounded-md">
                   No Agents Assigned
                 </Badge>
               )}

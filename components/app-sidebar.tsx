@@ -17,7 +17,8 @@ import {
   Archive,
   UserPen,
   LogOut,
-  Star
+  Star,
+  Bell
 } from "lucide-react";
 
 import {
@@ -44,6 +45,7 @@ const main = [
   { title: "Agents List", url: "/dashboard/agent-list", icon: Users },
   { title: "Aresenal", url: "/dashboard/arsenal", icon: Camera },
   { title: "Reviews", url: "/dashboard/reviews", icon: Star },
+  { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
   { title: "Archive", url: "/dashboard/archive", icon: Archive },
 ];
 

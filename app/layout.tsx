@@ -30,12 +30,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body 
-        className={`${openSans.className}`}
-        style={{ backgroundColor: '#121212' }}
+        className={`${openSans.className} text-[1.25rem]`}
+        style={{ backgroundColor: '#e5e7eb' }}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
